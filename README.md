@@ -1,11 +1,13 @@
 # Install
 
 pip install -r requirements.txt
+
 python setup.py install
 
 ## Dev
 
 pip install -r requirements.txt
+
 python setup.py develop
 
 # Required Binaries
