@@ -133,12 +133,17 @@ def entitlements(local_app_binary):
         ents_str = _execute("ldid -e {}".format(local_app_binary))
 
         # fix multiple entitlements for multiple archs
+        """
         ents = ""
         for line in ents_str.split("\n"):
             if not line: break
             ents += line
+        """
+
+        ents = "{}</plist>".format(ents_str.split("</plist>")[0])
 
         return plist_to_dict(ents)
+
 
     return _entitlements(local_app_binary)
 
