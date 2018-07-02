@@ -3,6 +3,9 @@ from __future__ import print_function
 from cmd import Cmd as _Cmd
 import signal as _signal
 
+# custom module imports
+from sys import path as _path
+
 # scrounger imports
 from scrounger.utils.config import _SCROUNGER_HOME, _HISTORY_FILE, _MAX_HISTORY
 
@@ -62,15 +65,17 @@ class _ScroungerPrompt(_Cmd, object):
 
         # add custom modules
         modules_path = "{}/modules/".format(_SCROUNGER_HOME)
-        modules = execute("find {} -name *.py".format(modules_path))
-        self._custom_modules = [
+        modules = execute("find {} -name \"*.py\"".format(modules_path))
+
+        # add path to sys.path
+        _path.append(modules_path)
+
+        #self._custom_modules = [
+        self._available_modules += [
             module.replace(modules_path, "").replace(".py", "")
             for module in modules.split("\n")
             if module and "__" not in module
         ]
-
-        # TODO: add custom modules to do_list
-        # TODO: make sure to identify them as custom
 
         execute("mkdir -p {}".format(self._global_options["output"]))
 
@@ -357,8 +362,13 @@ class _ScroungerPrompt(_Cmd, object):
         list_items = []
         for module in self._available_modules:
             if not module_type or module_type in module:
-                module_class = __import__("scrounger.modules.{}".format(
-                    module.replace("/", ".")), fromlist=["Module"])
+
+                if module.startswith("custom/"):
+                    module_class = __import__("{}".format(
+                        module.replace("/", ".")), fromlist=["Module"])
+                else:
+                    module_class = __import__("scrounger.modules.{}".format(
+                        module.replace("/", ".")), fromlist=["Module"])
 
                 if hasattr(module_class, "Module") and \
                 hasattr(module_class.Module, "meta"):
@@ -387,8 +397,13 @@ class _ScroungerPrompt(_Cmd, object):
         self.prompt = "\n{}scrounger{} {}{}{} > ".format(Color.UNDERLINE,
             Color.NORMAL, Color.RED, self._module, Color.NORMAL)
 
-        self._module_class = __import__("scrounger.modules.{}".format(
-            self._module.replace("/", ".")), fromlist=["Module"])
+
+        if module.startswith("custom/"):
+            self._module_class = __import__("{}".format(
+                module.replace("/", ".")), fromlist=["Module"])
+        else:
+            self._module_class = __import__("scrounger.modules.{}".format(
+                module.replace("/", ".")), fromlist=["Module"])
 
         self._module_instance = self._module_class.Module()
 
@@ -478,6 +493,8 @@ class _ScroungerPrompt(_Cmd, object):
         return [option for option in options if option.startswith(text)]
 
     def complete_set(self, text, line, start_index, end_index):
+        from scrounger.utils.general import execute
+
         CMD_LEN = (3, 4)
 
         commands = line.split(" ")
@@ -496,6 +513,12 @@ class _ScroungerPrompt(_Cmd, object):
             options = [""] # add None as 1 of the options
             options += ["result:{}".format(name) for name in self._results]
 
+            # looks in the file system
+            if text.startswith("./") or text.startswith("/"):
+                options += [f for f in execute(
+                    "ls -d {}*".format(text)).split("\n")]
+
+        options = list(set(options))
         return [option for option in options if option.startswith(text)]
 
     ############################################################################

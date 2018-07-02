@@ -266,7 +266,8 @@ class IOSDevice(BaseDevice):
             from json import loads
 
             apps = {}
-            listed_apps = self.execute("listapps -j -d")[0].split("\n")[:-1]
+            listed_apps = self.execute("listapps -j -d")[0].replace("\n", "").replace("'", "\"")
+
             listed_apps = loads(listed_apps)
             for app in listed_apps["apps"]:
                 appid = app["identifier"]
@@ -274,16 +275,6 @@ class IOSDevice(BaseDevice):
                 apps[appid]["application"] = apps[appid]["install_path"]
                 apps[appid]["display_name"] = apps[appid]["binary_name"]
                 apps[appid]["data"] = apps[appid]["data_path"]
-
-            """
-            for app in app_ids:
-                app_info = self.execute("ipainstaller -i {}".format(app))[0]
-                apps[app] = {}
-                for info in app_info.split("\n")[:-1]:
-                    key, value = info.split(":", 1)
-                    apps[app][key.strip().lower().replace(
-                        " ", "_")] = value.strip()
-            """
 
             return apps
 

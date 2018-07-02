@@ -2,6 +2,7 @@ from scrounger.core.module import BaseModule
 
 # helper functions / modules
 from scrounger.modules.misc.android.app.apktool_yaml import Module as YamlModule
+
 from scrounger.utils.config import Log
 
 class Module(BaseModule):
@@ -37,7 +38,6 @@ class Module(BaseModule):
         # create yaml
         apktool_module = YamlModule()
         apktool_module.decompiled_apk = self.decompiled_apk
-        apktool_module.identifier = self.identifier
         self.apktool = apktool_module.run()
         if "print" in self.apktool:
             return {"print": "Could not get the apktool yaml file"}

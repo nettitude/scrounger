@@ -1,11 +1,13 @@
 # Install
 
 pip install -r requirements.txt
+
 python setup.py install
 
 ## Dev
 
 pip install -r requirements.txt
+
 python setup.py develop
 
 # Required Binaries
@@ -25,16 +27,92 @@ python setup.py develop
 * lsusb
 * unzip
 
-## iOS Bianries
+## iOS Binaries
 * clutch (bundled)
 * dump_backup_flag (bundled)
 * dump_file_protection (bundled)
-* dump_keychain (bundled - 32bit only)
+* dump_keychain (bundled)
 * dump_log (bundled)
-* ipainstaller
+* listapps (bundled)
+* appinst (optional)
 * ldid (Optional)
 * otool (Optional)
 * Package: net.angelxwind.appsyncunified
+
+# Adding Custom Modules
+
+When installing the application a folder `~/.scrounger` will be created.
+Inside `~/.scrounger` will be a folder called `modules/custom` with the same structure as the default scrounger modules, e.g., `analysis/android/module_name`.
+
+To create a new custom module just add a new file with the module name you want and it will be included the next time you launch scrounger.
+
+## Example
+
+Added the following module (`~/.scrounger/modules/custom/misc/test.py`):
+
+```
+from scrounger.core.module import BaseModule
+
+class Module(BaseModule):
+    meta = {
+        "author": "RDC",
+        "description": """Just a Test module""",
+        "certainty": 100
+    }
+
+    options = [
+        {
+            "name": "output",
+            "description": "local output directory",
+            "required": False,
+            "default": None
+        },
+    ]
+
+    def run(self):
+
+        print("This is a print from the custom module")
+
+        return {
+            "print": "This will be print by scrounger's console."
+        }
+```
+
+## Execution
+
+```
+$ scrounger-console
+Starting Scrounger console...
+
+scrounger > list custom/misc
+
+Module            Certainty  Author  Description
+------            ---------  ------  -----------
+custom/misc/test  100%       RDC     Just a Test module
+
+scrounger > use custom/misc/test
+
+scrounger custom/misc/test > options
+
+Global Options:
+
+    Name    Value
+    ----    -----
+    device
+    output  /tmp/scrounger-app
+
+Module Options (custom/misc/test):
+
+    Name    Required  Description             Current Setting
+    ----    --------  -----------             ---------------
+    output  False     local output directory  /tmp/scrounger-app
+
+scrounger custom/misc/test > run
+This is a print from the custom module
+[+] This will be print by scrounger's console.
+
+scrounger custom/misc/test >
+```
 
 # Examples
 
@@ -360,5 +438,4 @@ Excuting Module 0
 
 * Re-write analysis module result printing on both console and cli
 * Add sessions to the console (allow to save and import sessions)
-* Add custom modules to the list of modules that can be used
 * Android providers with "@string" not being translated (?)
