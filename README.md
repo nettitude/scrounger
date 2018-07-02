@@ -361,7 +361,5 @@ Excuting Module 0
 * Re-write analysis module result printing on both console and cli
 * Add sessions to the console (allow to save and import sessions)
 * Add custom modules to the list of modules that can be used
-* Emulator Detection Module: change it to look at smali instead of source
-* Fragment Injection Module: change it to look at smali instead of source
 * Android providers with "@string" not being translated (?)
 * Add Android Misc Module: recompile / sign

@@ -55,6 +55,13 @@ the output directory",
 
         super(Module, self).__init__()
 
+    def validate_options(self):
+        """
+            This module should try to run even if the required variables are
+            not set
+        """
+        return True
+
     def run(self):
         results = []
         exceptions = []

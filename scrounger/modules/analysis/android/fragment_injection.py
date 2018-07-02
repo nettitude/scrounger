@@ -49,7 +49,7 @@ injection attacks",
             return {"print": "Could not get the apktool yaml file"}
         apktool = apktool.popitem()[1]
 
-         # preparing variable to run
+        # preparing variable to run
         activities = {}
         ignore = [filepath.strip() for filepath in self.ignore.split(";")]
 
@@ -59,7 +59,7 @@ injection attacks",
         Log.info("Analysing application's apktool yaml and smali")
         for directory in dirs:
             smali = "{}/{}".format(self.decompiled_apk, directory)
-            activities .update(pretty_grep(self.regex, smali))
+            activities.update(pretty_grep(self.regex, smali))
 
         if activities and int(apktool.min_sdk()) < 18:
             result.update({

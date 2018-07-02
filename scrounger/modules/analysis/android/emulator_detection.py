@@ -1,14 +1,11 @@
 from scrounger.core.module import BaseModule
 
 # helper functions
-from scrounger.utils.general import pretty_grep, pretty_grep_to_str
-from scrounger.utils.general import process
-from scrounger.utils.android import devices
+from scrounger.utils.general import pretty_grep, pretty_grep_to_str, process
+from scrounger.utils.android import devices, smali_dirs
 from scrounger.utils.config import Log
 from scrounger.core.device import AndroidDevice
 from time import sleep
-
-# TODO: also look at smali code instead of source
 
 class Module(BaseModule):
     meta = {
@@ -19,8 +16,8 @@ class Module(BaseModule):
 
     options = [
         {
-            "name": "source",
-            "description": "local folder containing the application's source",
+            "name": "decompiled_apk",
+            "description": "local folder containing the decompiled apk file",
             "required": True,
             "default": None
         },
@@ -50,8 +47,8 @@ class Module(BaseModule):
         }
     ]
 
-    regex = r"generic.*Build\.FINGERPRINT|Build\.FINGERPRINT.*generic|\
-sdk.*Build\.PRODUCT|Build\.PRODUCT.*sdk|Secure\.ANDROID_ID|getSensorList"
+    regex = r"Landroid/os/Build;->FINGERPRINT|Landroid/os/Build;->PRODUCT|\
+Landroid/provider/Settings$Secure|getSensorList"
 
     def run(self):
         result = {
@@ -61,16 +58,24 @@ sdk.*Build\.PRODUCT|Build\.PRODUCT.*sdk|Secure\.ANDROID_ID|getSensorList"
             "report": True
         }
 
-        Log.info("Analysing source for emulator detection mechanisms")
-        emulator_detection = pretty_grep(self.regex, self.source)
+        # preparing variable to run
+        emulator_detection = {}
+        ignore = [filepath.strip() for filepath in self.ignore.split(";")]
+
+        Log.info("Identifying smali directories")
+        dirs = smali_dirs(self.decompiled_apk)
+
+        Log.info("Analysing smali code for emulator detection mechanisms")
+        for directory in dirs:
+            smali = "{}/{}".format(self.decompiled_apk, directory)
+            emulator_detection.update(pretty_grep(self.regex, smali))
 
         if emulator_detection:
-            ignore = [filepath.strip() for filepath in self.ignore.split(";")]
-
             result = {
                 "title": "Application Detects Emulators",
                 "details": "{}\n\n{}".format(result["details"],
-                    pretty_grep_to_str(emulator_detection, self.source,ignore)),
+                    pretty_grep_to_str(emulator_detection,
+                        self.decompiled_apk, ignore)),
                 "severity": "Medium",
                 "report": True
             }

@@ -136,7 +136,7 @@ class _ScroungerPrompt(_Cmd, object):
             value = self._options[option]
 
             # if the options is a device, check if that device has been added
-            if option == "device" and value != None:
+            if option == "device" and value != None and value:
                 value = self._devices[int(value)]["device"]
 
             # if the options is from the results list, get the value
@@ -144,7 +144,7 @@ class _ScroungerPrompt(_Cmd, object):
             str(value).replace("result:", "") in self._results:
                 value = self._results[value.replace("result:", "")]
 
-            if value == None or value == "None":
+            if value == None or value == "None" or not value:
                 value = ""
 
             setattr(module, option, value)
