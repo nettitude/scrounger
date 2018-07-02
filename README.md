@@ -362,4 +362,3 @@ Excuting Module 0
 * Add sessions to the console (allow to save and import sessions)
 * Add custom modules to the list of modules that can be used
 * Android providers with "@string" not being translated (?)
-* Add Android Misc Module: recompile / sign

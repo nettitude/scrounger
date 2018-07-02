@@ -28,6 +28,15 @@ def _create_custom_modules_paths():
     for binary in binaries.split("\n"):
         execute("cp {} {}".format(binary, installed_path))
 
+    # copy android binaries
+    ios_binaries_path = "{}/bin/android/".format(current_path)
+    installed_path = "{}/bin/android".format(_SCROUNGER_HOME)
+    execute("mkdir -p {}".format(installed_path))
+
+    binaries = execute("find {} -type f".format(ios_binaries_path))
+    for binary in binaries.split("\n"):
+        execute("cp {} {}".format(binary, installed_path))
+
 class _pre_install(install):
     def run(self):
         _create_custom_modules_paths()

@@ -76,13 +76,12 @@ def recompile(decompiled_app_path, apk_file_path):
 
     return _recompile(decompiled_app_path, apk_file_path)
 
-def sign(apk_file_path, signjar, certificate, pk8):
+def sign(apk_file_path, signed_apk_file_path, signjar, certificate, pk8):
     """
-    Signs an apk file given a certificate, a pk8 file the signapk jar - the
-    result will be in the same directory as the original file with "-signed"
-    appended to it
+    Signs an apk file given a certificate, a pk8 file the signapk jar
 
     :param str apk_file_path: the apk file to be signed
+    :param str signed_apk_file_path: the apk file result
     :param str signjar: the signapk.jar file to use for the signing
     :param str certificate: the certificate used to sign the apk file
     :param str pk8: the pk8 key file to use to sign the apk file
@@ -90,10 +89,7 @@ def sign(apk_file_path, signjar, certificate, pk8):
     """
     @requires_binary("java")
     def _sign(apk_file_path, signjar, certificate, pk8):
-        signed_apk_file_path = "{}-signed.apk".format(
-            apk_file_path.replace(".apk", ""))
-
-        _execute("java -jar {} {} {} {} {}".format(signjar, certificate, pk8,
+        return _execute("java -jar {} {} {} {} {}".format(signjar, certificate, pk8,
             apk_file_path, signed_apk_file_path))
 
     return _sign(apk_file_path, signjar, certificate, pk8)

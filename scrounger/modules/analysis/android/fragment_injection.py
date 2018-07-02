@@ -6,8 +6,6 @@ from scrounger.utils.android import smali_dirs
 from scrounger.modules.misc.android.app.apktool_yaml import Module as YamlModule
 from scrounger.utils.config import Log
 
-# TODO: also look at smali code
-
 class Module(BaseModule):
     meta = {
         "author": "RDC",
