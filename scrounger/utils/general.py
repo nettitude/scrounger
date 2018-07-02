@@ -118,7 +118,7 @@ def pretty_multiline_grep(needle, haystack, no_lines, after=True):
         else:
             filename, line_number, details = line.split(":", 2)
 
-        # creat a new list if filename not in findings
+        # create a new list if filename not in findings
         if filename not in findings:
             findings[filename] = []
 
@@ -186,7 +186,7 @@ class BinaryNotFoundException(Exception):
 class IOSBinaryNotFoundException(BinaryNotFoundException):
     KNOWN_IOS_BINARY_PACKAGES = {
         "plutil": "com.ericasadun.utilities",
-        "ipainstaller": "ipainstaller",
+        "appinst": "com.linusyang.appinst",
     }
 
     BUNDLED_IOS_BINARIES = [

@@ -26,7 +26,7 @@ UIPasteboardOptionLocalOnly|UIPasteboardOptionExpirationDate"
 
     def run(self):
         result = {
-            "title": "The Application Does Not Disable Clipboard Access",
+            "title": "Application Does Not Disable Clipboard Access",
             "details": "",
             "severity": "Medium",
             "report": False

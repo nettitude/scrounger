@@ -32,7 +32,7 @@ busybox|c3Vic3RyYXRl|YnVzeWJveA==|eHBvc2Vk|c3VwZXJzdQ=="
 
     def run(self):
         result = {
-            "title": "Application Does Not Have Root Detection",
+            "title": "Application Does Not Implement Root Detection",
             "details": "",
             "severity": "High",
             "report": True

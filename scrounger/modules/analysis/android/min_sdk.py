@@ -28,7 +28,7 @@ class Module(BaseModule):
 
     def run(self):
         result = {
-            "title": "The Application Supports Outdated SDKs",
+            "title": "Application Supports Outdated SDKs",
             "details": "",
             "severity": "Low",
             "report": False

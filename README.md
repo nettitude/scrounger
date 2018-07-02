@@ -364,6 +364,4 @@ Excuting Module 0
 * Emulator Detection Module: change it to look at smali instead of source
 * Fragment Injection Module: change it to look at smali instead of source
 * Android providers with "@string" not being translated (?)
-* Make all modules consitent with one another
-* Make dump_keychain from scratch and arm64 too
 * Add Android Misc Module: recompile / sign

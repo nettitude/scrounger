@@ -38,7 +38,7 @@ NSPhotoLibraryUsage|NSRemindersUsage|NSLocationAlwaysUsageDescription"
 
     def run(self):
         result = {
-            "title": "The Application Uses Excessive Permissions",
+            "title": "Application Uses Excessive Permissions",
             "details": "",
             "severity": "Medium",
             "report": False

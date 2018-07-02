@@ -25,7 +25,7 @@ class Module(BaseModule):
 
     def run(self):
         result = {
-            "title": "The Application Does Not Detect Debuggers",
+            "title": "Application Does Not Detect Debuggers",
             "details": "",
             "severity": "Medium",
             "report": False

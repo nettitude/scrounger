@@ -38,7 +38,7 @@ android.permission.WAKE_LOCK"
 
     def run(self):
         result = {
-            "title": "The Application Has Inadequate Permissions",
+            "title": "Application Has Inadequate Permissions",
             "details": "",
             "severity": "Medium",
             "report": False

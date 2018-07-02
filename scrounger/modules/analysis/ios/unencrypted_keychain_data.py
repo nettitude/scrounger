@@ -66,8 +66,9 @@ the keychain",
 
         data = []
         for key in keychain_data:
-            if key['agrp'] in keychain_id:
-                data += [str(key['data']) if 'data' in key else str(key)]
+            if keychain_id in key["entitlement_group"] or \
+            keychain_id in key["account"] or keychain_id in key["service"]:
+                data += [str(key['keychain_data'])]
 
         report_data = []
         for item in data:

@@ -32,7 +32,7 @@ logcat",
 
     def run(self):
         result = {
-            "title": "Application Logs to Logcat",
+            "title": "Application Logs To Logcat",
             "details": "",
             "severity": "Low",
             "report": False

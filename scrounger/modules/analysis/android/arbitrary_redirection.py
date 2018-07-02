@@ -33,7 +33,7 @@ arbitrary redirection",
 
     def run(self):
         result = {
-            "title": "Application's WebViews Are vulnerable To Arbitrary \
+            "title": "Application's WebViews Are Vulnerable To Arbitrary \
 Redirection",
             "details": "",
             "severity": "Low",

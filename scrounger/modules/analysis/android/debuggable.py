@@ -22,7 +22,7 @@ class Module(BaseModule):
 
     def run(self):
         result = {
-            "title": "The Application Is Debuggable",
+            "title": "Application Is Debuggable",
             "details": "",
             "severity": "Low",
             "report": False

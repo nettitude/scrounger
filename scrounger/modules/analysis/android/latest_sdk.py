@@ -28,7 +28,7 @@ class Module(BaseModule):
 
     def run(self):
         result = {
-            "title": "The Application Does Not Target The Latest SDK",
+            "title": "Application Does Not Target The Latest SDK",
             "details": "",
             "severity": "Low",
             "report": False

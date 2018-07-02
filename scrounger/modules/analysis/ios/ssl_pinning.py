@@ -32,7 +32,7 @@ validatesDomainName|SSLPinningMode"
 
     def run(self):
         result = {
-            "title": "The Application Does Not Implement SSL Pinning",
+            "title": "Application Does Not Implement SSL Pinning",
             "details": "",
             "severity": "Medium",
             "report": False

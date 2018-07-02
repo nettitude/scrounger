@@ -9,6 +9,13 @@ from scrounger.utils.config import _SCROUNGER_HOME, _HISTORY_FILE, _MAX_HISTORY
 # change delimters for CMD
 import readline
 
+
+class Color():
+    RED = "\033[31m"
+    GREEN = "\033[32m"
+    NORMAL = "\033[0m"
+    UNDERLINE = "\033[4m"
+
 class _ScroungerPrompt(_Cmd, object):
     # TODO: add sessions using the core.session object
 
@@ -367,7 +374,7 @@ class _ScroungerPrompt(_Cmd, object):
 
     def do_back(self, args):
         """Deactivates the activated module"""
-        self.prompt = "\n> ".format(self._module)
+        self.prompt = "\n{}scrounger{} > ".format(Color.UNDERLINE, Color.NORMAL)
         self._options = {}
         self._module = None
         self._module_class = None
@@ -377,7 +384,8 @@ class _ScroungerPrompt(_Cmd, object):
         """Activates a module to be used"""
 
         self._module = module
-        self.prompt = "\n{} > ".format(self._module)
+        self.prompt = "\n{}scrounger{} {}{}{} > ".format(Color.UNDERLINE,
+            Color.NORMAL, Color.RED, self._module, Color.NORMAL)
 
         self._module_class = __import__("scrounger.modules.{}".format(
             self._module.replace("/", ".")), fromlist=["Module"])
@@ -494,6 +502,11 @@ class _ScroungerPrompt(_Cmd, object):
     #                          Exit functions                                  #
     ############################################################################
 
+
+    def do_exit(self, args):
+        """Exits the program."""
+        return self.do_quit(args)
+
     def do_quit(self, args):
         """Exits the program."""
         print("\nQuitting...")
@@ -534,7 +547,7 @@ def _main():
     signal_handler = _SignalHandler(prompt)
     _signal.signal(_signal.SIGINT, signal_handler.handle)
 
-    prompt.prompt = "\n> "
+    prompt.prompt = "\n{}scrounger{} > ".format(Color.UNDERLINE, Color.NORMAL)
     prompt.cmdloop("Starting Scrounger console...")
 
 if __name__ == '__main__':
