@@ -383,6 +383,18 @@ full_analysis", fromlist=["Module"])
         _print_list(header, list_items, "Module Options ({})".format(
             module.name()))
 
+def _print_results(file_name):
+    from json import loads
+
+    with open(file_name, "r") as f:
+        results = loads(f.read())
+
+    for finding in results:
+        if finding["report"]:
+            print("\n{}\n".format("-"*80))
+            print("[+] {}: {}\n{}".format(
+                finding["severity"], finding["title"], finding["details"]))
+
 def _main():
     global _DEBUG, _VERBOSE
 
@@ -406,6 +418,9 @@ def _main():
     parser.add_argument("-o", "--options", required=False,
         action="store_true", default=False,
         help="prints the required options for the selected modules")
+    parser.add_argument("-p", "--print-results", required=False,
+        metavar="/path/to/full-analysis.json",
+        help="prints the results of a full analysis json file")
     parser.add_argument("-V", "--verbose", required=False,
         action="store_true", default=False,
         help="prints more information when running the modules")
@@ -424,6 +439,8 @@ def _main():
     try:
         if args.list:
             _print_lists()
+        elif args.print_results:
+            _print_results(args.print_results)
         elif args.options:
             _print_modules_options(args.modules, args.full_analysis)
         elif args.full_analysis:
@@ -433,7 +450,7 @@ def _main():
         else:
             parser.print_help()
     except Exception as e:
-        print("[-] {}".format(e))
+        print("[-] Exception: {}".format(e))
 
         # print debug
         if _DEBUG:
