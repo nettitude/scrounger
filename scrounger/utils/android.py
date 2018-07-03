@@ -25,7 +25,7 @@ def devices():
     devices = {}
 
     for device in device_lines:
-        if device:
+        if device and "\t" in device:
             device_id, device_status = device.strip().split("\t", 1)
             devices[device_id] = device_status
 

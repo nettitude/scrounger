@@ -7,6 +7,7 @@ import signal as _signal
 from sys import path as _path
 
 # scrounger imports
+from scrounger.utils.config import Log
 from scrounger.utils.config import _SCROUNGER_HOME, _HISTORY_FILE, _MAX_HISTORY
 
 # change delimters for CMD
@@ -27,7 +28,9 @@ class _ScroungerPrompt(_Cmd, object):
     _options = {}
     _global_options = {
         "device": "",
-        "output": "/tmp/scrounger-app"
+        "output": "",
+        "debug": "False",
+        "verbose": "False"
     }
     _module = _module_class = _rows = _columns = None
     _devices = {}
@@ -57,12 +60,6 @@ class _ScroungerPrompt(_Cmd, object):
             if module and "__" not in module
         ]
 
-        # fix for macos
-        self._available_modules = [
-            module[1:] if module.startswith("/") else module
-            for module in sorted(self._available_modules)
-        ]
-
         # add custom modules
         modules_path = "{}/modules/".format(_SCROUNGER_HOME)
         modules = execute("find {} -name \"*.py\"".format(modules_path))
@@ -77,6 +74,12 @@ class _ScroungerPrompt(_Cmd, object):
             if module and "__" not in module
         ]
 
+        # fix for macos
+        self._available_modules = [
+            module[1:] if module.startswith("/") else module
+            for module in sorted(self._available_modules)
+        ]
+
         execute("mkdir -p {}".format(self._global_options["output"]))
 
         readline.set_completer_delims(' \t\n')
@@ -86,9 +89,12 @@ class _ScroungerPrompt(_Cmd, object):
     def postloop(self):
         _Cmd.postloop(self)   ## Clean up command completion
 
-        readline.set_history_length(_MAX_HISTORY)
-        readline.write_history_file(_HISTORY_FILE)
-
+        try:
+            readline.set_history_length(_MAX_HISTORY)
+            readline.write_history_file(_HISTORY_FILE)
+        except:
+            # readline is returning Exception for some reason
+            pass
 
     def _print_list(self, header, list_items, description=None):
         """ Prints a list according to the screen size """
@@ -154,13 +160,12 @@ class _ScroungerPrompt(_Cmd, object):
 
             setattr(module, option, value)
 
-    # TODO: needs to be re-written
     def _print_result(self, result):
         from scrounger.core.module import validate_analysis_result
 
         if "exceptions" in result:
             for e in result["exceptions"]:
-                print("[-] {}".format(e))
+                print("[-] Exception: {}".format(e))
 
         if "print" in result:
             print("[+] {}".format(result.pop("print")))
@@ -168,12 +173,15 @@ class _ScroungerPrompt(_Cmd, object):
         for key in result:
             if key.endswith("_result") and validate_analysis_result(
                 result[key]):
-                print("[+] Analysis result:")
-                print(result[key]["title"])
-                print("    Report: {}".format(result[key]["report"]))
-                print("    Details:\n{}".format(result[key]["details"]))
+                print("[+] Analysis result: {} (Severity: {})".format(
+                    result[key]["title"], result[key]["severity"]))
+                print("    Should Be Reported: {}".format(
+                    "Yes" if result[key]["report"] else "No"))
 
-    # TODO: needs to be re-written
+                if "verbose" in self._global_options and \
+                self._global_options["verbose"] == "True":
+                    print("    Details:\n{}".format(result[key]["details"]))
+
     def do_run(self, args):
         """Runs the current active module"""
         try:
@@ -184,7 +192,7 @@ class _ScroungerPrompt(_Cmd, object):
             self._print_result(result)
             self._results.update(result)
         except Exception as e:
-            print("[-] {}".format(e))
+            print("[-] Exception: {}".format(e))
 
             # print debug
             if "debug" in self._global_options and \
@@ -439,6 +447,10 @@ class _ScroungerPrompt(_Cmd, object):
         if key == "output":
             from scrounger.utils.general import execute
             execute("mkdir -p {}".format(value))
+
+        if key.lower() == "debug" and value.lower() == "true":
+            import logging as _logging
+            Log.setLevel(_logging.DEBUG)
 
         options[key] = value
 

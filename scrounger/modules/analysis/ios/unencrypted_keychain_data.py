@@ -57,17 +57,23 @@ the keychain",
         if not entitlements:
             return {"print": "Couldn't get entitlements from device."}
 
-        keychain_id = entitlements["keychain-access-groups"]
+
+        keychain_id = self.identifier
+        if "keychain-access-groups" in entitlements:
+            keychain_id = entitlements["keychain-access-groups"]
 
         keychain_module = KeychainModule()
         keychain_module.device = self.device
+        keychain_module.output = None
         keychain_result = keychain_module.run()
         keychain_data = keychain_result["keychain_data"]
 
         data = []
         for key in keychain_data:
-            if keychain_id in key["entitlement_group"] or \
-            keychain_id in key["account"] or keychain_id in key["service"]:
+            if (key["entitlement_group"] and \
+            keychain_id in key["entitlement_group"]) or (key["account"] and \
+            keychain_id in key["account"]) or (key["service"] and \
+            keychain_id in key["service"]):
                 data += [str(key['keychain_data'])]
 
         report_data = []

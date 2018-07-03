@@ -424,18 +424,23 @@ class IOSDevice(BaseDevice):
         """
         Installs an IPA app on the remote device
 
-        :param str ipa_file_path: the IPA file on the remote device to install
+        :param str ipa_file_path: the path tot he local IPA file
         :return: the result of installing the app
         """
 
         @_requires_ios_binary(self, "appinst")
         @_requires_ios_package(self, "net.angelxwind.appsyncunified")
         def _install(ipa_file_path):
+
+            filename = ipa_file_path.rsplit("/", 1)[-1]
+            remote_ipa_file = "/tmp/{}".format(filename.replace(" ", "_"))
+
             # prepare filename
             ipa_file_path = ipa_file_path.replace(" " , "\ ")
+            self.put(ipa_file_path, remote_ipa_file)
 
             result = self.execute(
-                "appinst {}".format(ipa_file_path))[0]
+                "appinst {}".format(remote_ipa_file))[0]
 
             # update app list
             self.execute("uicache")

@@ -1,11 +1,22 @@
 #! /usr/bin/env python
 
-from scrounger.utils.config import Log, _BANNER
+from scrounger.utils.config import Log, _BANNER, _SCROUNGER_HOME
 from scrounger.utils.general import execute as _execute
+
+from sys import path as _path
+import logging as _logging
 import argparse as _argparse
+
+# add custom modules path
+_modules_path = "{}/modules/".format(_SCROUNGER_HOME)
+_path.append(_modules_path)
 
 # define device
 _DEVICE = None
+
+# define modifiers
+_DEBUG = False
+_VERBOSE = False
 
 def _arguments_parser(arguments):
     """Returns a dict with the parsed arguments"""
@@ -35,15 +46,22 @@ def _module_parser(modules):
 
     result_modules = {}
     for index, module in enumerate(modules_str_list):
-       module_class = __import__("scrounger.modules.{}".format(
-            module.replace("/", ".")), fromlist=["Module"])
-       result_modules[index] = module_class.Module()
+        if module.startswith("custom/"):
+            module_class = __import__("{}".format(
+                module.replace("/", ".")), fromlist=["Module"])
+        else:
+            module_class = __import__("scrounger.modules.{}".format(
+                module.replace("/", ".")), fromlist=["Module"])
+        result_modules[index] = module_class.Module()
 
     return result_modules
 
 def _device_parser(device, modules_string):
     """Returns a Device object depending on the type of analysis being run"""
     global _DEVICE
+
+    if not device:
+        return None
 
     if "ios" in modules_string:
         from scrounger.utils.ios import devices
@@ -74,23 +92,29 @@ def _run_modules(modules, arguments, device):
         print("Excuting Module {}".format(index))
         instance = modules_instances[index]
 
+        # set default options first
+        for option in instance.options:
+            setattr(instance, option["name"], option["default"])
+
         # set options
         for option in options:
             setattr(instance, option, options[option])
 
         result = instance.run()
 
-        # TODO: needs to be re-written - ugly prints
         if "print" in result:
             print("[+] {}".format(result.pop("print")))
 
         for key in result:
             if key.endswith("_result") and validate_analysis_result(
                 result[key]):
-                print("[+] Analysis result:")
-                print(result[key]["title"])
-                print("    Report: {}".format(result[key]["report"]))
-                print("    Details:\n{}".format(result[key]["details"]))
+                print("[+] Analysis result: {} (Severity: {})".format(
+                    result[key]["title"], result[key]["severity"]))
+                print("    Should Be Reported: {}".format(
+                    "Yes" if result[key]["report"] else "No"))
+
+                if _VERBOSE:
+                    print("    Details:\n{}".format(result[key]["details"]))
 
 def _run_full_android(app_path, full_analysis_module, options):
     from scrounger.modules.misc.android import decompile_apk
@@ -270,19 +294,38 @@ def _print_lists():
         if module and "__" not in module and "full_analysis" not in module
     ]
 
+    # add custom modules
+    modules_path = "{}/modules/".format(_SCROUNGER_HOME)
+    modules = _execute("find {} -name \"*.py\"".format(modules_path))
+
+    #self._custom_modules = [
+    available_modules += [
+        module.replace(modules_path, "").replace(".py", "")
+        for module in modules.split("\n")
+        if module and "__" not in module
+    ]
+
     print("\nAvailable Modules:")
     for module in sorted(available_modules):
         print "    {}".format(module[1:] if module.startswith("/") else module)
 
     print("\nIOS Devices:")
     from scrounger.utils.ios import devices as ios_devices
-    for device in ios_devices():
+    devices = ios_devices()
+    for device in devices:
         print "    {}".format(device)
+
+    if not devices:
+        print "    None"
 
     print("\nAndroid Devices:")
     from scrounger.utils.android import devices as android_devices
-    for device in android_devices():
+    devices = android_devices()
+    for device in devices:
         print "    {}".format(device)
+
+    if not devices:
+        print "    None"
 
 def _print_list(header, list_items, description=None):
     if description:
@@ -341,6 +384,8 @@ full_analysis", fromlist=["Module"])
             module.name()))
 
 def _main():
+    global _DEBUG, _VERBOSE
+
     parser = _argparse.ArgumentParser(description=_BANNER,
         formatter_class=_argparse.RawDescriptionHelpFormatter)
     parser.add_argument("-m", "--modules", required=False,
@@ -361,22 +406,39 @@ def _main():
     parser.add_argument("-o", "--options", required=False,
         action="store_true", default=False,
         help="prints the required options for the selected modules")
+    parser.add_argument("-V", "--verbose", required=False,
+        action="store_true", default=False,
+        help="prints more information when running the modules")
+    parser.add_argument("-D", "--debug", required=False,
+        action="store_true", default=False,
+        help="prints more information when running scrounger")
 
     args = parser.parse_args()
 
-    #try:
-    if args.list:
-        _print_lists()
-    elif args.options:
-        _print_modules_options(args.modules, args.full_analysis)
-    elif args.full_analysis:
-        _run_full_analysis(args.full_analysis, args.arguments, args.device)
-    elif args.modules:
-        _run_modules(args.modules, args.arguments, args.device)
-    else:
-        parser.print_help()
-    #except Exception as e:
-        #print("[-] {}".format(e))
+    _DEBUG = args.debug
+    _VERBOSE = args.verbose
+
+    if _DEBUG:
+        Log.setLevel(_logging.DEBUG)
+
+    try:
+        if args.list:
+            _print_lists()
+        elif args.options:
+            _print_modules_options(args.modules, args.full_analysis)
+        elif args.full_analysis:
+            _run_full_analysis(args.full_analysis, args.arguments, args.device)
+        elif args.modules:
+            _run_modules(args.modules, args.arguments, args.device)
+        else:
+            parser.print_help()
+    except Exception as e:
+        print("[-] {}".format(e))
+
+        # print debug
+        if _DEBUG:
+            import traceback
+            print(traceback.format_exc())
 
     if _DEVICE:
         _DEVICE.clean()

@@ -436,6 +436,6 @@ Excuting Module 0
 
 # TODO
 
-* Re-write analysis module result printing on both console and cli
 * Add sessions to the console (allow to save and import sessions)
+* Add init file that is run everytime scrounger-console is started
 * Android providers with "@string" not being translated (?)

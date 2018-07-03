@@ -20,8 +20,8 @@ Variable to be used when logging is necessary
 """
 
 Log.addHandler(_handler)
-#Log.setLevel(_logging.INFO)
-Log.setLevel(_logging.DEBUG)
+Log.setLevel(_logging.INFO)
+#Log.setLevel(_logging.DEBUG)
 
 # Constants
 SSH_SESSION_TIMEOUT = 60*5 # 5 minutes
