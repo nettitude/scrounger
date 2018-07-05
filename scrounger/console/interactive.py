@@ -440,7 +440,12 @@ class _ScroungerPrompt(_Cmd, object):
     ############################################################################
 
     def _set_var(self, options, variable):
-        key, value = variable.split(" ", 1)
+        if not " " in variable:
+            key = variable.strip()
+            value = None
+        else:
+            key, value = variable.split(" ", 1)
+
         if value == "None" or value == None:
             value = ""
 

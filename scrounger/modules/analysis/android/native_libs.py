@@ -49,6 +49,8 @@ class Module(BaseModule):
                 "{}/{}".format(app_path, lib) for lib in libs_path
             ])
 
+            # TODO: I think there's a bug here with "[0]"
+
             libraries = [
                 lib for lib in self.device.root_execute(
                     "ls {}".format(libs_path_str))[0].split("\n")
