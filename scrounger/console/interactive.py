@@ -179,7 +179,7 @@ class _ScroungerPrompt(_Cmd, object):
                     "Yes" if result[key]["report"] else "No"))
 
                 if "verbose" in self._global_options and \
-                self._global_options["verbose"] == "True":
+                self._global_options["verbose"].lower() == "true":
                     print("    Details:\n{}".format(result[key]["details"]))
 
     def do_run(self, args):
@@ -469,7 +469,7 @@ class _ScroungerPrompt(_Cmd, object):
 
     def do_set(self, variable):
         """Sets a variable either module or global"""
-        if variable.startswith("global "):
+        if variable.startswith("global ") or not self._module:
             variable = variable.replace("global ", "")
             self._set_var(self._global_options, variable)
         else:

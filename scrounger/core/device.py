@@ -742,9 +742,9 @@ class AndroidDevice(BaseDevice):
         @_requires_android_binary(self, "pm")
         def _packages():
             packages = {}
-            for package in self.execute("pm list packages -f").split("\n"):
+            for package in self.execute("pm list packages -f -3").split("\n"):
                 package_name = package.rsplit("=", 1)[-1].strip()
-                package_apk  = package.split("=", 1)[0].split(":", 1)[-1].strip()
+                package_apk  = package.rsplit("=", 1)[0].split(":", 1)[-1].strip()
                 packages[package_name] = package_apk
 
             return packages
