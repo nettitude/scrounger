@@ -32,7 +32,7 @@ TLSMaximumSupportedProtocol"
 
     def run(self):
         result = {
-            "title": "The Application Communicates Over Insecure Channels",
+            "title": "Application Communicates Over Insecure Channels",
             "details": "",
             "severity": "Medium",
             "report": False

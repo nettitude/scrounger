@@ -32,7 +32,7 @@ keyboard detection",
 
     def run(self):
         result = {
-            "title": "Application Does Not Check for Third-Party Keyboards",
+            "title": "Application Does Not Check For Third-Party Keyboards",
             "details": "",
             "severity": "Low",
             "report": False

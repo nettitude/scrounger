@@ -26,8 +26,7 @@ keyboards",
 
     def run(self):
         result = {
-            "title": "Application Does Not Implement Third-Party Keyboard \
-Checks",
+            "title": "Application Does Not Check For Third-Party Keyboards",
             "details": "",
             "severity": "Medium",
             "report": False

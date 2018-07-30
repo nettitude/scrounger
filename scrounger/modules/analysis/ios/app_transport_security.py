@@ -30,7 +30,7 @@ misconfigurations",
 
     def run(self):
         result = {
-            "title": "The Application Has Insecure ATS Configurations",
+            "title": "Application Has Insecure ATS Configurations",
             "details": "",
             "severity": "Medium",
             "report": False

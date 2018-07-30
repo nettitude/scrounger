@@ -32,7 +32,7 @@ detection",
 
     def run(self):
         result = {
-            "title": "The Application Does Not Implement Jailbreak Detection",
+            "title": "Application Does Not Implement Jailbreak Detection",
             "details": "",
             "severity": "High",
             "report": True
@@ -47,14 +47,14 @@ detection",
 
         if matches:
             result.update({
-                "title": "The Application Implements Jailbreak Detection",
+                "title": "Application Implements Jailbreak Detection",
                 "details": "The following strings were found:\n* {}".format(
                     "\n* ".join(sorted(set(matches))))
             })
 
         if evidence:
             result.update({
-                "title": "The Application Implements Jailbreak Detection",
+                "title": "Application Implements Jailbreak Detection",
                 "details": "{}\nThe following was found in the class dump:\n\
 {}".format(result["details"], pretty_grep_to_str(evidence, self.class_dump))
             })

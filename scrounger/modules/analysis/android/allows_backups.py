@@ -30,7 +30,7 @@ class Module(BaseModule):
 
     def run(self):
         result = {
-            "title": "The Application Allows Backups",
+            "title": "Application Allows Backups",
             "details": "",
             "severity": "Low",
             "report": False

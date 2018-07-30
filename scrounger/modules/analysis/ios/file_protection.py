@@ -34,7 +34,7 @@ flags",
 
     def run(self):
         result = {
-            "title": "Application Files Without Protection Flags",
+            "title": "Application's Files Have Inadequate Protection Flags",
             "details": "",
             "severity": "Low",
             "report": False

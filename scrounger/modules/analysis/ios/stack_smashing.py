@@ -26,7 +26,7 @@ protections",
 
     def run(self):
         result = {
-            "title": "The Application Was Compiled Without Stack Smashing \
+            "title": "Application Was Compiled Without Stack Smashing \
 Protections",
             "details": "",
             "severity": "Medium",

@@ -261,18 +261,20 @@ class IOSDevice(BaseDevice):
 
         :return: returns a dict with the installed apps and their info
         """
-        @_requires_ios_binary(self, "ipainstaller")
+        @_requires_ios_binary(self, "listapps")
         def _apps():
-            apps = {}
+            from json import loads
 
-            app_ids = self.execute("ipainstaller -l")[0].split("\n")[:-1]
-            for app in app_ids:
-                app_info = self.execute("ipainstaller -i {}".format(app))[0]
-                apps[app] = {}
-                for info in app_info.split("\n")[:-1]:
-                    key, value = info.split(":", 1)
-                    apps[app][key.strip().lower().replace(
-                        " ", "_")] = value.strip()
+            apps = {}
+            listed_apps = self.execute("listapps -j -d")[0].replace("\n", "").replace("'", "\"")
+
+            listed_apps = loads(listed_apps)
+            for app in listed_apps["apps"]:
+                appid = app["identifier"]
+                apps[appid] = app
+                apps[appid]["application"] = apps[appid]["install_path"]
+                apps[appid]["display_name"] = apps[appid]["binary_name"]
+                apps[appid]["data"] = apps[appid]["data_path"]
 
             return apps
 
@@ -345,6 +347,28 @@ class IOSDevice(BaseDevice):
 
         return _file_protection(file_path)
 
+    def _translate_keychain_value(self, value):
+        """
+        Translates a value from the keychain dumper to a python equivalent
+
+        :param str value: the value to translate
+        :return: the translated value
+        """
+        value = value.strip()
+
+        if not value:
+            return None
+
+        valid_hex = "0123456789abdef"
+
+        if value[0] == "<" and value[-1] == ">" and value[1] in valid_hex:
+            return value[1:-1].replace(" ", "").replace("\n", "").decode("hex")
+
+        if "(null)" in value:
+            return None
+
+        return value
+
     def keychain_data(self):
         """
         Dumps all keychain data on the remote device
@@ -353,43 +377,70 @@ class IOSDevice(BaseDevice):
         """
         @_requires_ios_binary(self, "dump_keychain")
         def _keychain_data():
-            tmp_keychain_folder = "/tmp/scrounger-keychain"
 
-            # prepare to dump keychain data
-            self.execute("mkdir {}".format(tmp_keychain_folder))
+            keys = ["Service: ", "Account: ", "Entitlement Group: ", "Label: ",
+                "Generic Field: ", "Keychain Data: "]
 
             # dump keychain data
-            self.execute("cd {}; dump_keychain".format(tmp_keychain_folder))
+            result = self.execute("dump_keychain")[0]
 
             # get and parse result
-            keychain = self.plist("{}/keys.plist".format(tmp_keychain_folder))
-            keychain += self.plist("{}/genp.plist".format(tmp_keychain_folder))
-            keychain += self.plist("{}/cert.plist".format(tmp_keychain_folder))
-            keychain += self.plist("{}/inet.plist".format(tmp_keychain_folder))
+            keychain = []
+            keychain_data = {}
+            key = value = okey = None
+            for line in result.replace("\r\n", "\n").split("\n"):
 
-            # cleanup
-            self.execute("rm -rf {}".format(tmp_keychain_folder))
+                # Found new item
+                if "--------" in line:
+                    if keychain_data:
+                        keychain_data[key] = self._translate_keychain_value(
+                            "\n".join(value.split("\n")[:-2]))
+                        keychain += [keychain_data]
+                    keychain_data = {}
+                    key = value = okey = None
+
+                # Look for new key
+                for k in keys:
+                    if line.startswith(k):
+                        if key:
+                            keychain_data[key] = self._translate_keychain_value(
+                                value)
+                        key = k[:-2].lower().replace(" ", "_")
+                        value = line.split(k)[-1]
+                        okey = k
+
+                # if value already parsed because of first line
+                if okey:
+                    okey = None
+                else:
+                    value = "{}{}\n".format(value, line)
 
             return keychain
 
         return _keychain_data()
 
+
     def install(self, ipa_file_path):
         """
         Installs an IPA app on the remote device
 
-        :param str ipa_file_path: the IPA file on the remote device to install
+        :param str ipa_file_path: the path tot he local IPA file
         :return: the result of installing the app
         """
 
-        @_requires_ios_binary(self, "ipainstaller")
+        @_requires_ios_binary(self, "appinst")
         @_requires_ios_package(self, "net.angelxwind.appsyncunified")
         def _install(ipa_file_path):
+
+            filename = ipa_file_path.rsplit("/", 1)[-1]
+            remote_ipa_file = "/tmp/{}".format(filename.replace(" ", "_"))
+
             # prepare filename
             ipa_file_path = ipa_file_path.replace(" " , "\ ")
+            self.put(ipa_file_path, remote_ipa_file)
 
             result = self.execute(
-                "ipainstaller -f -d {}".format(ipa_file_path))[0]
+                "appinst {}".format(remote_ipa_file))[0]
 
             # update app list
             self.execute("uicache")
@@ -691,9 +742,9 @@ class AndroidDevice(BaseDevice):
         @_requires_android_binary(self, "pm")
         def _packages():
             packages = {}
-            for package in self.execute("pm list packages -f").split("\n"):
-                package_name = package.split("=", 1)[-1].strip()
-                package_apk  = package.split("=", 1)[0].split(":", 1)[-1].strip()
+            for package in self.execute("pm list packages -f -3").split("\n"):
+                package_name = package.rsplit("=", 1)[-1].strip()
+                package_apk  = package.rsplit("=", 1)[0].split(":", 1)[-1].strip()
                 packages[package_name] = package_apk
 
             return packages

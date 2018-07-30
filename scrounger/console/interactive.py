@@ -3,11 +3,22 @@ from __future__ import print_function
 from cmd import Cmd as _Cmd
 import signal as _signal
 
+# custom module imports
+from sys import path as _path
+
 # scrounger imports
+from scrounger.utils.config import Log
 from scrounger.utils.config import _SCROUNGER_HOME, _HISTORY_FILE, _MAX_HISTORY
 
 # change delimters for CMD
 import readline
+
+
+class Color():
+    RED = "\033[31m"
+    GREEN = "\033[32m"
+    NORMAL = "\033[0m"
+    UNDERLINE = "\033[4m"
 
 class _ScroungerPrompt(_Cmd, object):
     # TODO: add sessions using the core.session object
@@ -17,7 +28,9 @@ class _ScroungerPrompt(_Cmd, object):
     _options = {}
     _global_options = {
         "device": "",
-        "output": "/tmp/scrounger-app"
+        "output": "",
+        "debug": "False",
+        "verbose": "False"
     }
     _module = _module_class = _rows = _columns = None
     _devices = {}
@@ -47,23 +60,25 @@ class _ScroungerPrompt(_Cmd, object):
             if module and "__" not in module
         ]
 
-        # fix for macos
-        self._available_modules = [
-            module[1:] if module.startswith("/") else module
-            for module in sorted(self._available_modules)
-        ]
-
         # add custom modules
         modules_path = "{}/modules/".format(_SCROUNGER_HOME)
-        modules = execute("find {} -name *.py".format(modules_path))
-        self._custom_modules = [
+        modules = execute("find {} -name \"*.py\"".format(modules_path))
+
+        # add path to sys.path
+        _path.append(modules_path)
+
+        #self._custom_modules = [
+        self._available_modules += [
             module.replace(modules_path, "").replace(".py", "")
             for module in modules.split("\n")
             if module and "__" not in module
         ]
 
-        # TODO: add custom modules to do_list
-        # TODO: make sure to identify them as custom
+        # fix for macos
+        self._available_modules = [
+            module[1:] if module.startswith("/") else module
+            for module in sorted(self._available_modules)
+        ]
 
         execute("mkdir -p {}".format(self._global_options["output"]))
 
@@ -74,9 +89,12 @@ class _ScroungerPrompt(_Cmd, object):
     def postloop(self):
         _Cmd.postloop(self)   ## Clean up command completion
 
-        readline.set_history_length(_MAX_HISTORY)
-        readline.write_history_file(_HISTORY_FILE)
-
+        try:
+            readline.set_history_length(_MAX_HISTORY)
+            readline.write_history_file(_HISTORY_FILE)
+        except:
+            # readline is returning Exception for some reason
+            pass
 
     def _print_list(self, header, list_items, description=None):
         """ Prints a list according to the screen size """
@@ -129,7 +147,7 @@ class _ScroungerPrompt(_Cmd, object):
             value = self._options[option]
 
             # if the options is a device, check if that device has been added
-            if option == "device" and value != None:
+            if option == "device" and value != None and value:
                 value = self._devices[int(value)]["device"]
 
             # if the options is from the results list, get the value
@@ -137,18 +155,17 @@ class _ScroungerPrompt(_Cmd, object):
             str(value).replace("result:", "") in self._results:
                 value = self._results[value.replace("result:", "")]
 
-            if value == None or value == "None":
+            if value == None or value == "None" or not value:
                 value = ""
 
             setattr(module, option, value)
 
-    # TODO: needs to be re-written
     def _print_result(self, result):
         from scrounger.core.module import validate_analysis_result
 
         if "exceptions" in result:
             for e in result["exceptions"]:
-                print("[-] {}".format(e))
+                print("[-] Exception: {}".format(e))
 
         if "print" in result:
             print("[+] {}".format(result.pop("print")))
@@ -156,12 +173,15 @@ class _ScroungerPrompt(_Cmd, object):
         for key in result:
             if key.endswith("_result") and validate_analysis_result(
                 result[key]):
-                print("[+] Analysis result:")
-                print(result[key]["title"])
-                print("    Report: {}".format(result[key]["report"]))
-                print("    Details:\n{}".format(result[key]["details"]))
+                print("[+] Analysis result: {} (Severity: {})".format(
+                    result[key]["title"], result[key]["severity"]))
+                print("    Should Be Reported: {}".format(
+                    "Yes" if result[key]["report"] else "No"))
 
-    # TODO: needs to be re-written
+                if "verbose" in self._global_options and \
+                self._global_options["verbose"].lower() == "true":
+                    print("    Details:\n{}".format(result[key]["details"]))
+
     def do_run(self, args):
         """Runs the current active module"""
         try:
@@ -172,7 +192,7 @@ class _ScroungerPrompt(_Cmd, object):
             self._print_result(result)
             self._results.update(result)
         except Exception as e:
-            print("[-] {}".format(e))
+            print("[-] Exception: {}".format(e))
 
             # print debug
             if "debug" in self._global_options and \
@@ -350,8 +370,13 @@ class _ScroungerPrompt(_Cmd, object):
         list_items = []
         for module in self._available_modules:
             if not module_type or module_type in module:
-                module_class = __import__("scrounger.modules.{}".format(
-                    module.replace("/", ".")), fromlist=["Module"])
+
+                if module.startswith("custom/"):
+                    module_class = __import__("{}".format(
+                        module.replace("/", ".")), fromlist=["Module"])
+                else:
+                    module_class = __import__("scrounger.modules.{}".format(
+                        module.replace("/", ".")), fromlist=["Module"])
 
                 if hasattr(module_class, "Module") and \
                 hasattr(module_class.Module, "meta"):
@@ -367,7 +392,7 @@ class _ScroungerPrompt(_Cmd, object):
 
     def do_back(self, args):
         """Deactivates the activated module"""
-        self.prompt = "\n> ".format(self._module)
+        self.prompt = "\n{}scrounger{} > ".format(Color.UNDERLINE, Color.NORMAL)
         self._options = {}
         self._module = None
         self._module_class = None
@@ -377,10 +402,16 @@ class _ScroungerPrompt(_Cmd, object):
         """Activates a module to be used"""
 
         self._module = module
-        self.prompt = "\n{} > ".format(self._module)
+        self.prompt = "\n{}scrounger{} {}{}{} > ".format(Color.UNDERLINE,
+            Color.NORMAL, Color.RED, self._module, Color.NORMAL)
 
-        self._module_class = __import__("scrounger.modules.{}".format(
-            self._module.replace("/", ".")), fromlist=["Module"])
+
+        if module.startswith("custom/"):
+            self._module_class = __import__("{}".format(
+                module.replace("/", ".")), fromlist=["Module"])
+        else:
+            self._module_class = __import__("scrounger.modules.{}".format(
+                module.replace("/", ".")), fromlist=["Module"])
 
         self._module_instance = self._module_class.Module()
 
@@ -409,13 +440,22 @@ class _ScroungerPrompt(_Cmd, object):
     ############################################################################
 
     def _set_var(self, options, variable):
-        key, value = variable.split(" ", 1)
+        if not " " in variable:
+            key = variable.strip()
+            value = None
+        else:
+            key, value = variable.split(" ", 1)
+
         if value == "None" or value == None:
             value = ""
 
         if key == "output":
             from scrounger.utils.general import execute
             execute("mkdir -p {}".format(value))
+
+        if key.lower() == "debug" and value.lower() == "true":
+            import logging as _logging
+            Log.setLevel(_logging.DEBUG)
 
         options[key] = value
 
@@ -429,7 +469,7 @@ class _ScroungerPrompt(_Cmd, object):
 
     def do_set(self, variable):
         """Sets a variable either module or global"""
-        if variable.startswith("global "):
+        if variable.startswith("global ") or not self._module:
             variable = variable.replace("global ", "")
             self._set_var(self._global_options, variable)
         else:
@@ -470,6 +510,8 @@ class _ScroungerPrompt(_Cmd, object):
         return [option for option in options if option.startswith(text)]
 
     def complete_set(self, text, line, start_index, end_index):
+        from scrounger.utils.general import execute
+
         CMD_LEN = (3, 4)
 
         commands = line.split(" ")
@@ -488,11 +530,22 @@ class _ScroungerPrompt(_Cmd, object):
             options = [""] # add None as 1 of the options
             options += ["result:{}".format(name) for name in self._results]
 
+            # looks in the file system
+            if text.startswith("./") or text.startswith("/"):
+                options += [f for f in execute(
+                    "ls -d {}*".format(text)).split("\n")]
+
+        options = list(set(options))
         return [option for option in options if option.startswith(text)]
 
     ############################################################################
     #                          Exit functions                                  #
     ############################################################################
+
+
+    def do_exit(self, args):
+        """Exits the program."""
+        return self.do_quit(args)
 
     def do_quit(self, args):
         """Exits the program."""
@@ -534,7 +587,7 @@ def _main():
     signal_handler = _SignalHandler(prompt)
     _signal.signal(_signal.SIGINT, signal_handler.handle)
 
-    prompt.prompt = "\n> "
+    prompt.prompt = "\n{}scrounger{} > ".format(Color.UNDERLINE, Color.NORMAL)
     prompt.cmdloop("Starting Scrounger console...")
 
 if __name__ == '__main__':

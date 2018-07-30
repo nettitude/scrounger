@@ -2,9 +2,10 @@ from scrounger.core.module import BaseModule, validate_analysis_result
 
 # helper functions / modules
 from scrounger.utils.general import execute
-from scrounger.utils.config import Log
+from scrounger.utils.config import Log, _SCROUNGER_HOME
 from json import dumps
 from os import listdir
+from sys import path as _path
 
 class Module(BaseModule):
     meta = {
@@ -30,10 +31,32 @@ the output directory",
         import scrounger.modules.analysis.ios as ios_analysis
         all_modules = ios_analysis.__all__
 
+        # add custom modules
+        modules_path = "{}/modules/".format(_SCROUNGER_HOME)
+        modules = execute("find {} -name \"*.py\"".format(modules_path))
+
+        # add path to sys.path
+        _path.append(modules_path)
+
+        modules = [
+            module.replace(modules_path, "").replace(".py", "")
+            for module in modules.split("\n")
+            if module and "__" not in module
+        ]
+
+        all_modules += [
+            module for module in modules
+            if module.startswith("custom/analysis/ios")
+        ]
+
         for module in all_modules:
-            module_class = __import__(
-                "scrounger.modules.analysis.ios.{}".format(module),
-                fromlist=["Module"])
+            if module.startswith("custom/"):
+                module_class = __import__("{}".format(
+                    module.replace("/", ".")), fromlist=["Module"])
+            else:
+                module_class = __import__(
+                    "scrounger.modules.analysis.ios.{}".format(module),
+                    fromlist=["Module"])
 
             # avoid running full_analysis again
             if self.__module__ == module_class.__name__:
@@ -54,6 +77,13 @@ the output directory",
             self.options = sanitized_options.values()
 
         super(Module, self).__init__()
+
+    def validate_options(self):
+        """
+            This module should try to run even if the required variables are
+            not set
+        """
+        return True
 
     def run(self):
         results = []

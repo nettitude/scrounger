@@ -10,7 +10,7 @@ class Module(BaseModule):
         "author": "RDC",
         "description": "Checks if the application has screenshot protection \
 flags",
-        "certainty": 60
+        "certainty": 40
     }
 
     options = [
@@ -60,10 +60,12 @@ flags",
         if report_activities:
             result.update({
                 "report": True,
-                "details": "\* ".join([activity.replace(self.decompiled_apk, "")
+                "details": "* {}".format("\n* ".join(
+                    [activity.replace(self.decompiled_apk, "")
                     for activity in report_activities if not any(
                         i in activity for i in ignore)
-                ])
+                    ])
+                )
             })
 
         return {

@@ -22,7 +22,7 @@ class Module(BaseModule):
             "description": "list of bianries to install - semerated by ;",
             "required": True,
             "default": "clutch;dump_backup_flag;dump_file_protection;\
-dump_keychain;dump_log;ldid"
+dump_keychain;dump_log;listapps"
         }
     ]
 

@@ -1,46 +1,157 @@
-# Install
+# Description
+
+**Scrounger** - a person who borrows from or lives off others.
+
+There is no better description for this tool for two main reasons, the first is because this tool takes inspiration from many other tools that have already been published, the second reason is because it lives off mobile application's vulnerabilities.
+
+## Why
+
+Even though several other mobile application analysis tools have been developed, there is no one tool that can be used for both android and ios and can be called a "standard" must use on every mobile application assessment.
+
+The idea behind **Scrounger** is to make a metasploit-like tool that will not do a pentesters work but help the pentester on his assessment by executing mundane tasks that need to be performed on all assessments.
+
+## The Difference
+
+The main features **Scrounger** offers that others don't:
+
+* Works with Android and iOS
+* Metasploit-like console and modules
+* Offers a variaty of modules that can be run to give the pentester a starting point
+* Easily extendable
+
+## Inspiration / Thanks
+
+**Scrounger** was inspired by other tools, a huge thanks to the developers of:
+
+* Drozer - <https://github.com/mwrlabs/drozer>;
+* Needle - <https://github.com/mwrlabs/needle>; and
+* iOS Application Analysis - <https://github.com/timb-machine/ios-application-analyser>
+
+# Technical
+
+As a disclaimer, all identified findings by **Scrounger** should always be manually double checked.
+
+**When using modules that need an Android or iOS device, Scrounger needs a Rooted or Jailbroken device respectively**
+
+## Install
 
 pip install -r requirements.txt
 
 python setup.py install
 
-## Dev
+### Development
 
 pip install -r requirements.txt
 
 python setup.py develop
 
-# Required Binaries
+## Required Binaries
 
-## For Android
-* adb
-* apktool
+### For Android
+* adb - <https://developer.android.com/studio/#downloads>
+* apktool - <https://ibotpeaches.github.io/Apktool/>
 * avdmanager (Optional)
-* d2j-dex2jar
-* iproxy
+* d2j-dex2jar - <https://github.com/pxb1988/dex2jar>
+* iproxy - (Pakckage: libimobiledevice)
 * java
-* jd-cli
+* jd-cli - <https://github.com/kwart/jd-cmd>
 
-## For iOS
-* jtool / otool
-* ldid
+### For iOS
+* jtool - <http://www.newosxbook.com/tools/jtool.html> / otool
+* ldid - <https://github.com/daeken/ldid.git>
 * lsusb
 * unzip
 
-## iOS Bianries
+### iOS Binaries
 * clutch (bundled)
 * dump_backup_flag (bundled)
 * dump_file_protection (bundled)
-* dump_keychain (bundled - 32bit only)
+* dump_keychain (bundled)
 * dump_log (bundled)
-* ipainstaller
+* listapps (bundled)
+* appinst (optional)
 * ldid (Optional)
 * otool (Optional)
-* Package: net.angelxwind.appsyncunified
+* Package: net.angelxwind.appsyncunified (Optional)
 
-# Examples
+## Adding Custom Modules
 
-## Listing / Searching modules
+When installing the application a folder `~/.scrounger` will be created.
+Inside `~/.scrounger` will be a folder called `modules/custom` with the same structure as the default scrounger modules, e.g., `analysis/android/module_name`.
+
+To create a new custom module just add a new file with the module name you want and it will be included the next time you launch scrounger.
+
+### Example
+
+Added the following module (`~/.scrounger/modules/custom/misc/test.py`):
+
+```
+from scrounger.core.module import BaseModule
+
+class Module(BaseModule):
+    meta = {
+        "author": "RDC",
+        "description": """Just a Test module""",
+        "certainty": 100
+    }
+
+    options = [
+        {
+            "name": "output",
+            "description": "local output directory",
+            "required": False,
+            "default": None
+        },
+    ]
+
+    def run(self):
+
+        print("This is a print from the custom module")
+
+        return {
+            "print": "This will be print by scrounger's console."
+        }
+```
+
+### Execution
+
+```
+$ scrounger-console
+Starting Scrounger console...
+
+scrounger > list custom/misc
+
+Module            Certainty  Author  Description
+------            ---------  ------  -----------
+custom/misc/test  100%       RDC     Just a Test module
+
+scrounger > use custom/misc/test
+
+scrounger custom/misc/test > options
+
+Global Options:
+
+    Name    Value
+    ----    -----
+    device
+    output  /tmp/scrounger-app
+
+Module Options (custom/misc/test):
+
+    Name    Required  Description             Current Setting
+    ----    --------  -----------             ---------------
+    output  False     local output directory  /tmp/scrounger-app
+
+scrounger custom/misc/test > run
+This is a print from the custom module
+[+] This will be print by scrounger's console.
+
+scrounger custom/misc/test >
+```
+
+## Examples
+
+### Listing / Searching modules
 
 ```
 $ scrounger-console
@@ -105,7 +216,7 @@ misc/ios/pull_ipa                       100%      RDC    Pulls the IPA file from
 misc/ios/unzip_ipa                      100%      RDC    Unzips the IPA file into the output directory
 ```
 
-## Using Misc Module
+### Using Misc Module
 
 ```
 $ scrounger-console
@@ -157,7 +268,7 @@ misc/android/decompile_apk > run
 [+] Application decompiled to scrounger-demo-output/com.eg.challengeapp.decompiled
 ```
 
-## Using results from other modules
+### Using results from other modules
 
 ```
 misc/android/decompile_apk > show results
@@ -220,7 +331,7 @@ The Application Has Inadequate Permissions
 * android.permission.READ_SMS
 ```
 
-## Using devices
+### Using devices
 
 ```
 $ scrounger-console
@@ -304,13 +415,14 @@ de.codenauts.hockeyapp
 ...
 ```
 
-## Command Line Help
+### Command Line Help
 
 ```
 $ scrounger --help
 usage: scrounger [-h] [-m analysis/ios/module1;analysis/ios/module2]
                  [-a argument1=value1;argument1=value2;]
                  [-f /path/to/the/app.[apk|ipa]] [-d device_id] [-l] [-o]
+                 [-p /path/to/full-analysis.json] [-V] [-D]
 
    _____
   / ____|
@@ -324,8 +436,7 @@ usage: scrounger [-h] [-m analysis/ios/module1;analysis/ios/module2]
 optional arguments:
   -h, --help            show this help message and exit
   -m analysis/ios/module1;analysis/ios/module2, --modules analysis/ios/module1;analysis/ios/module2
-                        modules to be run - seperated by ; - will be run in
-                        order
+                        modules to be run - seperated by ; - will be run in order
   -a argument1=value1;argument1=value2;, --arguments argument1=value1;argument1=value2;
                         arguments for the modules to be run
   -f /path/to/the/app.[apk|ipa], --full-analysis /path/to/the/app.[apk|ipa]
@@ -334,12 +445,16 @@ optional arguments:
                         device to be used by the modules
   -l, --list            list available devices and modules
   -o, --options         prints the required options for the selected modules
+  -p /path/to/full-analysis.json, --print-results /path/to/full-analysis.json
+                        prints the results of a full analysis json file
+  -V, --verbose         prints more information when running the modules
+  -D, --debug           prints more information when running scrounger
 ```
 
-## Using the command line
+### Using the command line
 
 ```
-(scrounger) /tmp/demo __ 11:17:36
+
 $ scrounger -o -m "misc/android/decompile_apk"
 
 Module Options (misc.android.decompile_apk):
@@ -348,7 +463,7 @@ Module Options (misc.android.decompile_apk):
     ----   -------- -----------                -------
     output True     local output directory     None
     apk    True     local path to the APK file None
-(scrounger) /tmp/demo __ 11:17:39
+    
 $ scrounger -m "misc/android/decompile_apk" -a "apk=./a.apk;output=./cli-demo"
 Excuting Module 0
 2018-05-01 11:17:42 -                  decompile_apk : Creating decompilation directory
@@ -358,14 +473,8 @@ Excuting Module 0
 [+] Application decompiled to ./cli-demo/com.eg.challengeapp.decompiled
 ```
 
-# TODO
+## TODO
 
-* Re-write analysis module result printing on both console and cli
 * Add sessions to the console (allow to save and import sessions)
-* Add custom modules to the list of modules that can be used
-* Emulator Detection Module: change it to look at smali instead of source
-* Fragment Injection Module: change it to look at smali instead of source
+* Add init file that is run everytime scrounger-console is started
 * Android providers with "@string" not being translated (?)
-* Make all modules consitent with one another
-* Make dump_keychain from scratch and arm64 too
-* Add Android Misc Module: recompile / sign

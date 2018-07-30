@@ -20,8 +20,8 @@ Variable to be used when logging is necessary
 """
 
 Log.addHandler(_handler)
-#Log.setLevel(_logging.INFO)
-Log.setLevel(_logging.DEBUG)
+Log.setLevel(_logging.INFO)
+#Log.setLevel(_logging.DEBUG)
 
 # Constants
 SSH_SESSION_TIMEOUT = 60*5 # 5 minutes
@@ -37,7 +37,7 @@ _BANNER = """
                                      __/ |
                                     |___/
 """
-_VERSION = "0.1.0"
+_VERSION = "0.1.6"
 _SCROUNGER_HOME = "{}/.scrounger".format(getenv('HOME'))
 _HISTORY_FILE = "{}/history".format(_SCROUNGER_HOME)
 _MAX_HISTORY = 1000

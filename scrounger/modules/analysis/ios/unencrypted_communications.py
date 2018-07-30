@@ -51,8 +51,6 @@ unencrypted channels",
                 continue
             report_matches += [match]
 
-        print(report_matches)
-
         if report_matches:
             result.update({
                 "report": True,

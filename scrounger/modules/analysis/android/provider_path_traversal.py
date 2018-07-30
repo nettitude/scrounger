@@ -35,7 +35,7 @@ vulnerabilities",
 
     def run(self):
         result = {
-            "title": "Application Providers Are Vulnerable to Path Traversal",
+            "title": "Application's Providers Are Vulnerable To Path Traversal",
             "details": "",
             "severity": "High",
             "report": False

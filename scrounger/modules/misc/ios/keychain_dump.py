@@ -22,7 +22,7 @@ class Module(BaseModule):
         {
             "name": "output",
             "description": "local output directory",
-            "required": True,
+            "required": False,
             "default": None
         },
     ]
@@ -34,16 +34,23 @@ class Module(BaseModule):
 
         Log.info("Pulling keychain data")
         keychain_data = self.device.keychain_data()
-        filename = "{}/keychain.json".format(self.output)
 
-        Log.info("Saving keychain data")
-        with open(filename, "w") as fp:
-            fp.write(dumps(keychain_data))
-
-        return {
-            "keychain_file": filename,
-            "keychain_data": keychain_data,
-            "print": "Keychain data saved in {}.".format(filename)
+        result = {
+            "keychain_data": keychain_data
         }
+
+        if hasattr(self, "output") and self.output:
+            filename = "{}/keychain.json".format(self.output)
+
+            Log.info("Saving keychain data")
+            with open(filename, "w") as fp:
+                fp.write(dumps(keychain_data))
+
+            result.update({
+                "keychain_file": filename,
+                "print": "Keychain data saved in {}.".format(filename)
+            })
+
+        return result
 
 

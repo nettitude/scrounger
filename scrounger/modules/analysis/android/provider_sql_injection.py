@@ -41,7 +41,7 @@ vulnerabilities",
 
     def run(self):
         result = {
-            "title": "Application Providers Are Vulnerable to SQL Injection",
+            "title": "Application's Providers Are Vulnerable To SQL Injection",
             "details": "",
             "severity": "High",
             "report": False
