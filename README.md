@@ -23,9 +23,9 @@ The main features **Scrounger** offers that others don't:
 
 **Scrounger** was inspired by other tools, a huge thanks to the developers of:
 
-* Drozer - <https://github.com/mwrlabs/drozer>;
-* Needle - <https://github.com/mwrlabs/needle>; and
-* iOS Application Analysis - <https://github.com/timb-machine/ios-application-analyser>
+* Drozer (<https://github.com/mwrlabs/drozer>);
+* Needle (<https://github.com/mwrlabs/needle>); and
+* iOS Application Analysis (<https://github.com/timb-machine/ios-application-analyser>).
 
 # Technical
 
@@ -35,44 +35,188 @@ As a disclaimer, all identified findings by **Scrounger** should always be manua
 
 ## Install
 
+```
 pip install -r requirements.txt
-
 python setup.py install
+```
 
-### Development
+## Development
 
+```
 pip install -r requirements.txt
-
 python setup.py develop
+```
 
 ## Required Binaries
 
-### For Android
-* adb - <https://developer.android.com/studio/#downloads>
-* apktool - <https://ibotpeaches.github.io/Apktool/>
-* avdmanager (Optional)
-* d2j-dex2jar - <https://github.com/pxb1988/dex2jar>
-* iproxy - (Pakckage: libimobiledevice)
-* java
-* jd-cli - <https://github.com/kwart/jd-cmd>
+### For Android Modules
+* java (<http://www.oracle.com/technetwork/java/javase/downloads/index.html>)
+* jd-cli (<https://github.com/kwart/jd-cmd>)
+* apktool (<https://ibotpeaches.github.io/Apktool/>)
+* d2j-dex2jar (<https://github.com/pxb1988/dex2jar>)
+* adb (<https://developer.android.com/studio/releases/platform-tools>)
+* Other (Optional):
+    * avdmanager (<https://developer.android.com/studio/#downloads>)
 
-### For iOS
-* jtool - <http://www.newosxbook.com/tools/jtool.html> / otool
-* ldid - <https://github.com/daeken/ldid.git>
-* lsusb
+
+### For iOS Modules
+* jtool (Linux) (<http://www.newosxbook.com/tools/jtool.html>)
+* otool (MacOS) (<https://developer.apple.com/xcode/>)
+* ldid (<https://github.com/daeken/ldid.git>)
+* iproxy (Package: libimobiledevice)
+* lsusb (Package: usbutils)
 * unzip
 
 ### iOS Binaries
-* clutch (bundled)
-* dump_backup_flag (bundled)
-* dump_file_protection (bundled)
-* dump_keychain (bundled)
-* dump_log (bundled)
-* listapps (bundled)
-* appinst (optional)
-* ldid (Optional)
-* otool (Optional)
-* Package: net.angelxwind.appsyncunified (Optional)
+* Bundled Binaries:
+    * clutch
+    * dump_backup_flag
+    * dump_file_protection
+    * dump_keychain
+    * dump_log
+    * listapps
+* Cydia Karen's Repository (https://cydia.angelxwind.net) (Optional):
+    * AppSync Unified (Package: net.angelxwind.appsyncunified)
+    * appinst (Package: com.linusyang.appinst)
+* Other (Optional):
+    * ldid
+    * otool
+
+## Install Scripts
+
+### Linux
+
+```
+# install iproxy lsusb
+sudo apt-get install libimobiledevice usbutils
+
+# install jd-cli
+if [ ! -x "$(which jd-cli)" ]; then
+    curl -L -o /tmp/jdcli.zip https://github.com/kwart/jd-cmd/releases/download/jd-cmd-0.9.2.Final/jd-cli-0.9.2-dist.zip
+    unzip /tmp/jdcli.zip /usr/local/share/jd-cli
+    ln -s /usr/local/share/jd-cli/jd-cli /usr/local/bin/jd-cli
+    ln -s /usr/local/share/jd-cli/jd-cli.jar /usr/local/bin/jd-cli.jar
+    rm -rf /tmp/jdcli.zip
+fi
+
+# install apktool
+if [ ! -x "$(which apktool)" ]; then
+    mkdir /usr/local/share/apktool
+    curl -L -o /usr/local/share/apktool/apktool https://raw.githubusercontent.com/iBotPeaches/Apktool/master/scripts/osx/apktool
+    curl -L -o /usr/local/share/apktool/apktool.jar https://bitbucket.org/iBotPeaches/apktool/downloads/apktool_2.3.3.jar
+    chmod +x /usr/local/share/apktool /usr/local/share/apktool/apktool.jar
+    ln -s /usr/local/share/apktool /usr/local/bin/apktool
+    ln -s /usr/local/share/apktool.jar /usr/local/bin/apktool.jar
+fi
+
+# install dex2jar
+if [ ! -x "$(which d2j-dex2jar)" ]; then
+    curl -L -o /tmp/d2j.zip https://github.com/pxb1988/dex2jar/files/1867564/dex-tools-2.1-SNAPSHOT.zip
+    unzip /tmp/d2j.zip -d /tmp/d2j
+    dirname=$(ls --color=none /tmp/d2j)
+    mv /tmp/d2j/$dirname /usr/local/share/d2j-dex2jar
+    ln -s /usr/local/share/d2j-dex2jar/d2j-dex2jar.sh /usr/local/bin/d2j-dex2jar.sh
+    ln -s /usr/local/share/d2j-dex2jar/d2j-apk-sign.sh /usr/local/bin/d2j-apk-sign.sh
+    rm -rf /tmp/d2j.zip
+fi
+
+if [ ! -x "$(which d2j-dex2jar)" ]; then
+    ln -s /usr/local/bin/d2j-dex2jar.sh /usr/local/bin/d2j-dex2jar
+fi
+
+# install adb
+if [ ! -x "$(which adb)" ]; then
+    curl -L -o /tmp/platform-tools.zip https://dl.google.com/android/repository/platform-tools-latest-linux.zip
+    unzip /tmp/platform-tools.zip -d /tmp/pt
+    mv /tmp/pt/platform-tools /usr/local/share/
+    ln -s /usr/local/share/platform-tools/adb /usr/local/bin/adb
+    ln -s /usr/local/share/platform-tools/fastboot /usr/local/bin/fastboot
+fi
+
+# install ldid
+if [ ! -x "$(which ldid)" ]; then
+    git clone https://github.com/daeken/ldid.git /tmp/ldid
+    cd /tmp/ldid
+    ./make.sh
+    mv ldid /usr/local/bin/
+    cd /tmp
+    rm -rf /tmp/ldid
+fi
+
+# install jtool
+if [ ! -x "$(which jtool)" ]; then
+    curl -L -o /tmp/jtool.tar http://www.newosxbook.com/tools/jtool.tar
+    mkdir /tmp/jtool
+    tar xvf /tmp/jtool.tar -C /tmp/jtool
+    mv /tmp/jtool/jtool.ELF64 /usr/local/bin/jtool
+    rm -rf /tmp/jtool.tar /tmp/jtool
+fi
+
+# install scrounger
+git clone git@github.com:nettitude/scrounger.git
+cd scrounger
+pip install -r requirements.txt
+python setup.py install
+```
+
+### MacOS
+
+```
+# install iproxy ldid lsusb
+brew tap jlhonora/lsusb && brew install lsusb libimobiledevice ldid
+
+# install jd-cli
+if [ ! -x "$(which jd-cli)" ]; then
+    curl -L -o /tmp/jdcli.zip https://github.com/kwart/jd-cmd/releases/download/jd-cmd-0.9.2.Final/jd-cli-0.9.2-dist.zip
+    unzip /tmp/jdcli.zip /usr/local/share/jd-cli
+    ln -s /usr/local/share/jd-cli/jd-cli /usr/local/bin/jd-cli
+    ln -s /usr/local/share/jd-cli/jd-cli.jar /usr/local/bin/jd-cli.jar
+    rm -rf /tmp/jdcli.zip
+fi
+
+# install apktool
+if [ ! -x "$(which apktool)" ]; then
+    mkdir /usr/local/share/apktool
+    curl -L -o /usr/local/share/apktool/apktool https://raw.githubusercontent.com/iBotPeaches/Apktool/master/scripts/osx/apktool
+    curl -L -o /usr/local/share/apktool/apktool.jar https://bitbucket.org/iBotPeaches/apktool/downloads/apktool_2.3.3.jar
+    chmod +x /usr/local/share/apktool /usr/local/share/apktool/apktool.jar
+    ln -s /usr/local/share/apktool /usr/local/bin/apktool
+    ln -s /usr/local/share/apktool.jar /usr/local/bin/apktool.jar
+fi
+
+# install dex2jar
+if [ ! -x "$(which d2j-dex2jar)" ]; then
+    curl -L -o /tmp/d2j.zip https://github.com/pxb1988/dex2jar/files/1867564/dex-tools-2.1-SNAPSHOT.zip
+    unzip /tmp/d2j.zip -d /tmp/d2j
+    dirname=$(ls --color=none /tmp/d2j)
+    mv /tmp/d2j/$dirname /usr/local/share/d2j-dex2jar
+    ln -s /usr/local/share/d2j-dex2jar/d2j-dex2jar.sh /usr/local/bin/d2j-dex2jar.sh
+    ln -s /usr/local/share/d2j-dex2jar/d2j-apk-sign.sh /usr/local/bin/d2j-apk-sign.sh
+    rm -rf /tmp/d2j.zip
+fi
+
+if [ ! -x "$(which d2j-dex2jar)" ]; then
+    ln -s /usr/local/bin/d2j-dex2jar.sh /usr/local/bin/d2j-dex2jar
+fi
+
+# install adb
+if [ ! -x "$(which adb)" ]; then
+    curl -L -o /tmp/platform-tools.zip https://dl.google.com/android/repository/platform-tools-latest-darwin.zip
+    unzip /tmp/platform-tools.zip -d /tmp/pt
+    mv /tmp/pt/platform-tools /usr/local/share/
+    ln -s /usr/local/share/platform-tools/adb /usr/local/bin/adb
+    ln -s /usr/local/share/platform-tools/fastboot /usr/local/bin/fastboot
+fi
+
+# install Xcode / command line tools
+xcode-select --install
+
+# install scrounger
+git clone git@github.com:nettitude/scrounger.git
+cd scrounger
+pip install -r requirements.txt
+python setup.py install
+```
 
 ## Adding Custom Modules
 
@@ -463,7 +607,7 @@ Module Options (misc.android.decompile_apk):
     ----   -------- -----------                -------
     output True     local output directory     None
     apk    True     local path to the APK file None
-    
+
 $ scrounger -m "misc/android/decompile_apk" -a "apk=./a.apk;output=./cli-demo"
 Excuting Module 0
 2018-05-01 11:17:42 -                  decompile_apk : Creating decompilation directory
