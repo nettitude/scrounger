@@ -4,6 +4,8 @@
 
 There is no better description for this tool for two main reasons, the first is because this tool takes inspiration from many other tools that have already been published, the second reason is because it lives off mobile application's vulnerabilities.
 
+[![asciicast](https://asciinema.org/a/hC7sfGHVc5x7CWa57IXcGb3Um.png)](https://asciinema.org/a/hC7sfGHVc5x7CWa57IXcGb3Um)
+
 ## Why
 
 Even though several other mobile application analysis tools have been developed, there is no one tool that can be used for both android and ios and can be called a "standard" must use on every mobile application assessment.
