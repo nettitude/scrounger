@@ -151,7 +151,7 @@ class IOSDevice(BaseDevice):
         self._start_connection()
 
         # log command that is going to be run
-        _Log.debug("running: {}".format(command))
+        _Log.debug("Running: {}".format(command))
 
         # execute
         stdout, stderr = self._ssh_session.execute(command)
@@ -641,6 +641,10 @@ class AndroidDevice(BaseDevice):
         :param str command: the command to be executed
         :return: stdout and stderr of the executed command
         """
+
+        # log command that is going to be run
+        _Log.debug("Running: {}".format(command))
+
         return _adb_command("-s {} shell {}".format(self._device_id, command))
 
     def root_execute(self, command):
@@ -650,7 +654,11 @@ class AndroidDevice(BaseDevice):
         :param str command: the command to execute
         :return: stdout and stderr from the executed command
         """
-        return self.execute("su -c '{}'".format(command.replace("'", "\'")))
+        @_requires_android_binary(self, "su")
+        def _root_execute(command):
+            return self.execute("su -c '{}'".format(command.replace("'", "\'")))
+
+        return _root_execute(command)
 
     def install(self, apk_path):
         """

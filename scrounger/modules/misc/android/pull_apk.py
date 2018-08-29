@@ -1,5 +1,6 @@
 from scrounger.core.module import BaseModule
 
+from scrounger.utils.general import file_exists
 from scrounger.utils.config import Log
 
 class Module(BaseModule):
@@ -41,13 +42,28 @@ class Module(BaseModule):
             remote_dir = "/sdcard/scrounger-tmp"
             self.device.execute("mkdir -p {}".format(remote_dir))
 
+            # check directory was created
+            remote_check = self.device.execute("ls -d {}".format(remote_dir))
+            if not remote_check or "No such file or directory" in remote_check:
+                return {
+                    "print": "Could not create remote temp directory {}".format(
+                        remote_dir
+                    )
+                }
+
             # pull apk
             Log.info("Pulling apk file")
             self.device.pull_apk(self.identifier, remote_dir, filename)
 
             # clean tmp directory
-            Log.info("Cleanign up remote directory")
+            Log.info("Cleaning up remote directory")
             self.device.execute("rm -rf {}".format(remote_dir))
+
+            # check file was pulled
+            if not file_exists(filename):
+                return {
+                    "print": "Could not pull the file."
+                }
 
             return {
                 "{}_local_apk".format(self.identifier): filename,
