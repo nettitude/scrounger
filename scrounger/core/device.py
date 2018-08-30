@@ -872,8 +872,9 @@ class AndroidDevice(BaseDevice):
 
         dest_apk_path = "{}/{}.apk".format(temp_path, package)
 
-        # copy apk to temp folder
-        self.root_execute("cp {} {}".format(apk_path, dest_apk_path))
+        # copy apk to temp folder - no need for root?
+        # self.root_execute("cp {} {}".format(apk_path, dest_apk_path))
+        self.execute("cp {} {}".format(apk_path, dest_apk_path))
 
         # pull apk
         self.get(dest_apk_path, local_path)
