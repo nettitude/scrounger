@@ -44,7 +44,7 @@ class Module(BaseModule):
 
             Log.info("Saving keychain data")
             with open(filename, "w") as fp:
-                fp.write(dumps(keychain_data))
+                fp.write(dumps(keychain_data, ensure_ascii=False))
 
             result.update({
                 "keychain_file": filename,
