@@ -37,7 +37,8 @@ _BANNER = """
                                      __/ |
                                     |___/
 """
-_VERSION = "0.1.6"
-_SCROUNGER_HOME = "{}/.scrounger".format(getenv('HOME'))
+_VERSION = "0.1.7"
+_SCROUNGER_HOME_NAME = ".scrounger"
+_SCROUNGER_HOME = "{}/{}".format(getenv('HOME'), _SCROUNGER_HOME_NAME)
 _HISTORY_FILE = "{}/history".format(_SCROUNGER_HOME)
 _MAX_HISTORY = 1000
