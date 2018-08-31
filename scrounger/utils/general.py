@@ -1,3 +1,5 @@
+from scrounger.utils.config import Log as _Log
+
 """
 Module with utility functions.
 """
@@ -12,6 +14,9 @@ def execute(command):
     from subprocess import check_output, STDOUT
     command = "{}; exit 0".format(command)
 
+    # log command that is going to be run
+    _Log.debug("Shell Command: {}".format(command))
+
     return check_output(command, stderr=STDOUT, shell=True)
 
 def process(command):
@@ -23,6 +28,16 @@ def process(command):
     """
     from subprocess import Popen, PIPE
     return Popen(command, stdout=PIPE, stderr=PIPE, shell=True)
+
+def file_exists(file_path):
+    """
+    Checks if a file exists in the local host.
+
+    :param str file_path: the path to the local file to check
+    :return: True if the file exists or False otherwise
+    """
+    from os import path
+    return path.isfile(file_path)
 
 def remove_multiple_spaces(string):
     """
