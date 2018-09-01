@@ -365,11 +365,17 @@ class _ScroungerPrompt(_Cmd, object):
     ############################################################################
 
     def do_list(self, module_type):
-        """Lists all available modules"""
+        """Lists all available modules. Modules can also be filtered by
+keywords. Examples:
+    list ios            - lists all modules for ios
+    list misc/android   - lists all misc modules for android
+    list nodevice       - lists all modules that don't require a device
+    list device         - lists all modules that require a device"""
 
         list_items = []
         for module in self._available_modules:
-            if not module_type or module_type in module:
+            if not module_type or module_type in module \
+            or "device" in module_type:
 
                 if module.startswith("custom/"):
                     module_class = __import__("{}".format(
@@ -380,6 +386,18 @@ class _ScroungerPrompt(_Cmd, object):
 
                 if hasattr(module_class, "Module") and \
                 hasattr(module_class.Module, "meta"):
+                    if "device" in [ option["name"]
+                    for option in module_class.Module.options]:
+                        module = "{}*".format(module)
+
+                    if module_type and module_type == "device" and \
+                    "*" not in module:
+                        continue
+
+                    if module_type and module_type == "nodevice" and \
+                    "*" in module:
+                        continue
+
                     list_items += [{
                         1: module,
                         2: "{}%".format(module_class.Module.meta["certainty"]),
@@ -389,6 +407,8 @@ class _ScroungerPrompt(_Cmd, object):
 
         header = {1: "Module", 2: "Certainty", 3: "Author", 4: "Description"}
         self._print_list(header, list_items)
+
+        print("\n*Requires a device to work.")
 
     def do_back(self, args):
         """Deactivates the activated module"""
