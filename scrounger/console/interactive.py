@@ -8,11 +8,13 @@ from sys import path as _path
 
 # scrounger imports
 from scrounger.utils.config import Log, _HOME
-from scrounger.utils.config import _SCROUNGER_HOME, _HISTORY_FILE, _MAX_HISTORY
+from scrounger.utils.config import _HISTORY_FILE, _MAX_HISTORY
+
+# session imports
+from scrounger.core.session import Session as _Session
 
 # change delimters for CMD
 import readline
-
 
 class Color():
     RED = "\033[31m"
@@ -23,18 +25,8 @@ class Color():
 class _ScroungerPrompt(_Cmd, object):
     # TODO: add sessions using the core.session object
 
-    _available_modules = []
-    _custom_modules = []
-    _options = {}
-    _global_options = {
-        "device": "",
-        "output": "",
-        "debug": "False",
-        "verbose": "False"
-    }
-    _module = _module_class = _rows = _columns = None
-    _devices = {}
-    _results = {}
+    _session = None
+    _sessions = []
 
     def default(self, line):
         print("{}: command not found".format(line))
@@ -44,43 +36,9 @@ class _ScroungerPrompt(_Cmd, object):
         from scrounger.utils.general import execute
         import scrounger.modules
 
-        _Cmd.preloop(self)   ## sets up command completion
+        _Cmd.preloop(self) # sets up command completion
 
-        self._rows, self._columns = popen('stty size', 'r').read().split()
-        self._rows, self._columns = int(self._rows), int(self._columns)
-        if self._columns < 128: self._columns = 128
-
-        # need to add / to then replace it
-        modules_path = "{}/".format(scrounger.modules.__path__[0])
-        modules = execute("find {} -name '*.py'".format(modules_path))
-
-        self._available_modules = [
-            module.replace(modules_path, "").replace(".py", "")
-            for module in modules.split("\n")
-            if module and "__" not in module
-        ]
-
-        # add custom modules
-        modules_path = "{}/modules/".format(_SCROUNGER_HOME)
-        modules = execute("find {} -name \"*.py\"".format(modules_path))
-
-        # add path to sys.path
-        _path.append(modules_path)
-
-        #self._custom_modules = [
-        self._available_modules += [
-            module.replace(modules_path, "").replace(".py", "")
-            for module in modules.split("\n")
-            if module and "__" not in module
-        ]
-
-        # fix for macos
-        self._available_modules = [
-            module[1:] if module.startswith("/") else module
-            for module in sorted(self._available_modules)
-        ]
-
-        execute("mkdir -p {}".format(self._global_options["output"]))
+        self._session = _Session("default")
 
         readline.set_completer_delims(' \t\n')
         if path.exists(_HISTORY_FILE):
@@ -143,17 +101,17 @@ class _ScroungerPrompt(_Cmd, object):
     #                        Run functions                                     #
     ############################################################################
     def _prepare_module(self, module):
-        for option in self._options:
-            value = self._options[option]
+        for option in self._session.options:
+            value = self._session.options[option]
 
             # if the options is a device, check if that device has been added
             if option == "device" and value != None and value:
-                value = self._devices[int(value)]["device"]
+                value = self._session.devices[int(value)]["device"]
 
             # if the options is from the results list, get the value
             elif value and str(value).startswith("result:") and \
-            str(value).replace("result:", "") in self._results:
-                value = self._results[value.replace("result:", "")]
+            str(value).replace("result:", "") in self._session.results:
+                value = self._session.results[value.replace("result:", "")]
 
             if value == None or value == "None" or not value:
                 value = ""
@@ -178,25 +136,25 @@ class _ScroungerPrompt(_Cmd, object):
                 print("    Should Be Reported: {}".format(
                     "Yes" if result[key]["report"] else "No"))
 
-                if "verbose" in self._global_options and \
-                self._global_options["verbose"].lower() == "true":
+                if "verbose" in self._session.global_options and \
+                self._session.global_options["verbose"].lower() == "true":
                     print("    Details:\n{}".format(result[key]["details"]))
 
     def do_run(self, args):
         """Runs the current active module"""
         try:
-            module = self._module_instance
+            module = self._session.instance()
             self._prepare_module(module)
             module.validate_options()
             result = module.run()
             self._print_result(result)
-            self._results.update(result)
+            self._session.results.update(result)
         except Exception as e:
             print("[-] Exception: {}".format(e))
 
             # print debug
-            if "debug" in self._global_options and \
-            self._global_options["debug"] == "True":
+            if "debug" in self._session.global_options and \
+            self._session.global_options["debug"] == "True":
                 import traceback
                 print(traceback.format_exc())
 
@@ -211,18 +169,18 @@ class _ScroungerPrompt(_Cmd, object):
         print_type = args.split(" ", 1)[0]
         if "result" in print_type:
             name = args.split(" ", 1)[-1]
-            if name in self._results:
-                value = self._results[name]
+            if name in self._session.results:
+                value = self._session.results[name]
 
         elif "option" in print_type:
             name = args.split(" ", 1)[-1]
-            if name in self._options:
-                value = self._options[name]
+            if name in self._session.options:
+                value = self._session.options[name]
 
         elif "global" in print_type:
             name = args.split(" ", 1)[-1]
-            if name in self._global_options:
-                value = self._global_options[name]
+            if name in self._session.global_options:
+                value = self._session.global_options[name]
 
         if name and value != "IgnoredValue":
             print("\n{} Name: {}".format(print_type.capitalize(), name))
@@ -234,19 +192,19 @@ class _ScroungerPrompt(_Cmd, object):
 
         if "option" in line:
             return [
-                option for option in self._options
+                option for option in self._session.options
                 if option.startswith(text)
             ]
 
         if "global" in line:
             return [
-                option for option in self._global_options
+                option for option in self._session.global_options
                 if option.startswith(text)
             ]
 
         if "result" in line:
             return [
-                option for option in self._results
+                option for option in self._session.results
                 if option.startswith(text)
             ]
 
@@ -259,9 +217,9 @@ class _ScroungerPrompt(_Cmd, object):
         list_items = [
             {
                 1: device,
-                2: self._devices[device]["type"],
-                3: self._devices[device]["device"].device_id()
-            } for device in self._devices
+                2: self._session.devices[device]["type"],
+                3: self._session.devices[device]["device"].device_id()
+            } for device in self._session.devices
         ]
 
         self._print_list(header, list_items, "Added Devices")
@@ -273,8 +231,8 @@ class _ScroungerPrompt(_Cmd, object):
         list_items = [
             {
                 1: result,
-                2: self._results[result]
-            } for result in self._results
+                2: self._session.results[result]
+            } for result in self._session.results
         ]
 
         self._print_list(header, list_items, "Results")
@@ -314,7 +272,7 @@ class _ScroungerPrompt(_Cmd, object):
                 from scrounger.core.device import AndroidDevice as Device
 
             try:
-                self._devices[max([0] + self._devices.keys()) + 1] ={
+                self._session.devices[max([0] + self._session.devices.keys()) + 1] ={
                     "device": Device(options[1]),
                     "type": options[0]
                 }
@@ -344,21 +302,22 @@ class _ScroungerPrompt(_Cmd, object):
     def do_options(self, args):
         """Shows global options and options for the current module"""
         list_items = [
-            {1: item, 2: self._global_options[item]}
-            for item in self._global_options
+            {1: item, 2: self._session.global_options[item]}
+            for item in self._session.global_options
         ]
         self._print_list({1: "Name", 2: "Value"}, list_items, "Global Options")
 
-        if self._module:
+        if self._session.module():
             header = {1: "Name", 2: "Required", 3: "Description",
                 4: "Current Setting"}
 
             list_items = [{1: option["name"], 2: option["required"],
-                3: option["description"], 4: self._options[option["name"]]}
-                for option in self._module_instance.options
+                3: option["description"],
+                4: self._session.options[option["name"]]}
+                for option in self._session.module_options()
             ]
             self._print_list(header, list_items,
-                "Module Options ({})".format(self._module))
+                "Module Options ({})".format(self._session.module()))
 
     ############################################################################
     #                    Use and List module functions                         #
@@ -373,7 +332,7 @@ keywords. Examples:
     list device         - lists all modules that require a device"""
 
         list_items = []
-        for module in self._available_modules:
+        for module in self._session.modules():
             if not module_type or module_type in module \
             or "device" in module_type:
 
@@ -413,45 +372,34 @@ keywords. Examples:
     def do_back(self, args):
         """Deactivates the activated module"""
         self.prompt = "\n{}scrounger{} > ".format(Color.UNDERLINE, Color.NORMAL)
-        self._options = {}
-        self._module = None
-        self._module_class = None
-        self._module_instance = None
+        self.options = {}
+        self._session.back()
 
     def do_use(self, module):
         """Activates a module to be used"""
 
-        self._module = module
         self.prompt = "\n{}scrounger{} {}{}{} > ".format(Color.UNDERLINE,
-            Color.NORMAL, Color.RED, self._module, Color.NORMAL)
+            Color.NORMAL, Color.RED, module, Color.NORMAL)
 
+        try:
+            self._session.use(module)
+        except Exception as e:
+            print("[-] {}".format(e.message))
+            self.prompt = "\n{}scrounger{} > ".format(
+                Color.UNDERLINE, Color.NORMAL)
 
-        if module.startswith("custom/"):
-            self._module_class = __import__("{}".format(
-                module.replace("/", ".")), fromlist=["Module"])
-        else:
-            self._module_class = __import__("scrounger.modules.{}".format(
-                module.replace("/", ".")), fromlist=["Module"])
-
-        self._module_instance = self._module_class.Module()
-
-        if not hasattr(self._module_class, "Module") or not hasattr(
-            self._module_class.Module, "meta") or not hasattr(
-            self._module_instance, "options"):
-            print("[-] Missing required variables or `Module` class")
-
-        self._options = {}
-        for option in self._module_instance.options:
+        self._session.options = {}
+        for option in self._session.module_options():
             var_name = option["name"]
-            self._options[var_name] = option["default"]
-            if self._options[var_name] == None:
-                self._options[var_name] = ""
-            if var_name in self._global_options:
-                self._options[var_name] = self._global_options[var_name]
+            self._session.options[var_name] = option["default"]
+            if self._session.options[var_name] == None:
+                self._session.options[var_name] = ""
+            if var_name in self._session.global_options:
+                self._session.options[var_name] = self._session.global_options[var_name]
 
     def complete_use(self, text, line, start_index, end_index):
         return [
-            module for module in self._available_modules
+            module for module in self._session.modules()
             if module.startswith(text)
         ]
 
@@ -486,17 +434,17 @@ keywords. Examples:
         """Sets a variable either module or global"""
         if variable.startswith("global "):
             variable = variable.replace("global ", "")
-            self._global_options[variable.split(" ", 1)[0]] = ""
+            self._session.global_options[variable.split(" ", 1)[0]] = ""
         else:
-            self._options[variable.split(" ", 1)[0]] = ""
+            self._session.options[variable.split(" ", 1)[0]] = ""
 
     def do_set(self, variable):
         """Sets a variable either module or global"""
-        if variable.startswith("global ") or not self._module:
+        if variable.startswith("global ") or not self._session.module():
             variable = variable.replace("global ", "")
-            self._set_var(self._global_options, variable)
+            self._set_var(self._session.global_options, variable)
         else:
-            self._set_var(self._options, variable)
+            self._set_var(self._session.options, variable)
 
     def _complete_var_helper(self, text, line):
         CMD_LEN = (3, 4)
@@ -510,12 +458,12 @@ keywords. Examples:
         if len(commands) < CMD_LEN[0]: # if setting var name or global
             if "global" not in line:
                 options = ["global"]
-            options += [option for option in self._global_options] + [
-                option for option in self._options]
+            options += [option for option in self._session.global_options] + [
+                option for option in self._session.options]
 
         elif len(commands) < CMD_LEN[1]: # if setting value
             options = [""] # add None as 1 of the options
-            options += ["result:{}".format(name) for name in self._results]
+            options += ["result:{}".format(name) for name in self._session.results]
 
         return [option for option in options if option.startswith(text)]
 
@@ -525,10 +473,10 @@ keywords. Examples:
         options = []
 
         if "global" not in line and len(commands) < 3:
-            options = ["global"] + [option for option in self._options]
+            options = ["global"] + [option for option in self._session.options]
 
         if len(commands) < 4 and "global" in line:
-            options += [option for option in self._global_options]
+            options += [option for option in self._session.global_options]
 
         return [option for option in options if option.startswith(text)]
 
@@ -546,17 +494,18 @@ keywords. Examples:
         if len(commands) < CMD_LEN[0]: # if setting var name or global
             if "global" not in line:
                 options = ["global"]
-            options += [option for option in self._global_options] + [
-                option for option in self._options]
+            options += [option for option in self._session.global_options] + [
+                option for option in self._session.options]
 
         elif len(commands) < CMD_LEN[1]: # if setting value
             options = [""] # add None as 1 of the options
-            options += ["result:{}".format(name) for name in self._results]
+            options += ["result:{}".format(name) for name in self._session.results]
 
             # looks in the file system
-            if text.startswith("./") or text.startswith("/"):
-                options += [f for f in execute(
-                    "ls -d {}*".format(text)).split("\n")]
+            if text.startswith("./") or text.startswith("/") or \
+            text.startswith("~/"):
+                options += [f.replace(_HOME, "~") for f in execute(
+                    "ls -d {}*".format(text.replace("~", _HOME))).split("\n")]
 
         options = list(set(options))
         return [option for option in options if option.startswith(text)]
@@ -573,9 +522,9 @@ keywords. Examples:
     def do_quit(self, args):
         """Exits the program."""
         print("\nQuitting...")
-        for device in self._devices:
-            if self._devices[device]["type"] == "ios":
-                self._devices[device]["device"].clean()
+        for device in self._session.devices:
+            if self._session.devices[device]["type"] == "ios":
+                self._session.devices[device]["device"].clean()
 
         self.postloop()
 
