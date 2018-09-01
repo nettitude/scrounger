@@ -7,7 +7,7 @@ import signal as _signal
 from sys import path as _path
 
 # scrounger imports
-from scrounger.utils.config import Log
+from scrounger.utils.config import Log, _HOME
 from scrounger.utils.config import _SCROUNGER_HOME, _HISTORY_FILE, _MAX_HISTORY
 
 # change delimters for CMD
@@ -319,7 +319,7 @@ class _ScroungerPrompt(_Cmd, object):
                     "type": options[0]
                 }
             except Exception as e:
-                print("[-] {}".format(e))
+                print("[-] Device not found: {}".format(e))
 
     def complete_add_device(self, text, line, start_index, end_index):
         os_types = ["android", "ios"]
@@ -448,6 +448,9 @@ class _ScroungerPrompt(_Cmd, object):
 
         if value == "None" or value == None:
             value = ""
+
+        if value and value.startswith("~/"):
+            value = value.replace("~", _HOME, 1)
 
         if key == "output":
             from scrounger.utils.general import execute

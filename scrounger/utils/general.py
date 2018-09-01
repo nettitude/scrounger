@@ -1,4 +1,5 @@
 from scrounger.utils.config import Log as _Log
+from scrounger.utils.config import binary_memory as _memory
 
 """
 Module with utility functions.
@@ -246,12 +247,20 @@ class requires_binary(object):
         self._binary = binary
 
     def __call__(self, func):
-
         def wrapper(obj=None, *args, **kwargs):
-            binary = execute("which {}".format(self._binary))
-            if not binary or 'not found' in binary:
-                raise BinaryNotFoundException("{} binary not found.".format(
-                    self._binary), self._binary)
+
+            # check if we checked and found the binary before
+            if self._binary not in _memory["binary"]:
+
+                # check if binary exists
+                binary = execute("command -v {}".format(self._binary))
+                if not binary or 'not found' in binary:
+                    raise BinaryNotFoundException("{} binary not found.".format(
+                        self._binary), self._binary)
+
+                # binary found - add it to the list
+                _memory["binary"] += [self._binary]
+
             return func() if not obj else func(obj, *args, **kwargs)
 
         return wrapper
@@ -273,10 +282,25 @@ class requires_ios_binary(object):
 
     def __call__(self, func):
         def wrapper(obj=None, *args, **kwargs):
-            binary = self._device.execute("which {}".format(self._binary))[0]
-            if not binary or 'not found' in binary:
-                raise IOSBinaryNotFoundException(
-                    "{} binary not found.".format(self._binary), self._binary)
+
+            # get device id
+            device_id = self._device.device_id()
+            if device_id not in _memory["ios"]:
+                _memory["ios"][device_id] = []
+
+            # check if we checked and found the binary before
+            if self._binary not in _memory["ios"][device_id]:
+
+                binary = self._device.execute(
+                    "command -v {}".format(self._binary))[0]
+                if not binary or 'not found' in binary:
+                    raise IOSBinaryNotFoundException(
+                        "{} binary not found.".format(self._binary),
+                        self._binary)
+
+                # binary found - add it to the list
+                _memory["ios"][device_id] += [self._binary]
+
             return func() if not obj else func(obj, *args, **kwargs)
 
         return wrapper
@@ -298,11 +322,23 @@ class requires_ios_package(object):
 
     def __call__(self, func):
         def wrapper(obj=None, *args, **kwargs):
-            packages = self._device.execute("dpkg -l")[0]
 
-            if self._package not in packages:
-                raise Exception(
-                    "{} not installed.".format(self._package), self._package)
+            # get device id
+            device_id = self._device.device_id()
+            if device_id not in _memory["ios_packages"]:
+                _memory["ios_packages"][device_id] = []
+
+            # check if we checked and found the binary before
+            if self._package not in _memory["ios_packages"][device_id]:
+
+                packages = self._device.execute("dpkg -l")[0]
+                if self._package not in packages:
+                    raise Exception("{} not installed.".format(self._package),
+                        self._package)
+
+            # binary found - add it to the list
+            _memory["ios_packages"][device_id] += [self._package]
+
             return func() if not obj else func(obj, *args, **kwargs)
 
         return wrapper
@@ -324,10 +360,24 @@ class requires_android_binary(object):
 
     def __call__(self, func):
         def wrapper(obj=None, *args, **kwargs):
-            binary = self._device.execute("which {}".format(self._binary))
-            if not binary or 'not found' in binary:
-                raise AndroidBinaryNotFoundException(
-                    "{} binary not found.".format(self._binary), self._binary)
+
+            # get device id
+            device_id = self._device.device_id()
+            if device_id not in _memory["android"]:
+                _memory["android"][device_id] = []
+
+            # check if we checked and found the binary before
+            if self._binary not in _memory["android"][device_id]:
+                binary = self._device.execute(
+                    "command -v {}".format(self._binary))
+                if not binary or 'not found' in binary:
+                    raise AndroidBinaryNotFoundException(
+                        "{} binary not found.".format(self._binary),
+                        self._binary)
+
+            # binary found - add it to the list
+            _memory["android"][device_id] += [self._binary]
+
             return func() if not obj else func(obj, *args, **kwargs)
 
         return wrapper
