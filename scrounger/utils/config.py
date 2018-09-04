@@ -50,4 +50,5 @@ _HOME = getenv('HOME')
 _SCROUNGER_HOME_NAME = ".scrounger"
 _SCROUNGER_HOME = "{}/{}".format(_HOME, _SCROUNGER_HOME_NAME)
 _HISTORY_FILE = "{}/history".format(_SCROUNGER_HOME)
+_SESSION_FILE = "{}/sessions".format(_SCROUNGER_HOME)
 _MAX_HISTORY = 1000

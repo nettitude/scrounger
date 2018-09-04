@@ -8,10 +8,12 @@ from sys import path as _path
 
 # scrounger imports
 from scrounger.utils.config import Log, _HOME
-from scrounger.utils.config import _HISTORY_FILE, _MAX_HISTORY
+from scrounger.utils.config import _SESSION_FILE, _HISTORY_FILE, _MAX_HISTORY
 
 # session imports
 from scrounger.core.session import Session as _Session
+from scrounger.core.session import save_sessions as _save_sessions
+from scrounger.core.session import load_sessions as _load_sessions
 
 # change delimters for CMD
 import readline
@@ -23,10 +25,14 @@ class Color():
     UNDERLINE = "\033[4m"
 
 class _ScroungerPrompt(_Cmd, object):
-    # TODO: add sessions using the core.session object
-
     _session = None
     _sessions = []
+
+    def _print_error(self, msg):
+        print("[-] {}".format(msg))
+
+    def _print_status(self, msg):
+        print("[+] {}".format(msg))
 
     def default(self, line):
         print("{}: command not found".format(line))
@@ -39,6 +45,9 @@ class _ScroungerPrompt(_Cmd, object):
         _Cmd.preloop(self) # sets up command completion
 
         self._session = _Session("default")
+        self._session.prompt = self.prompt
+
+        self._sessions = _load_sessions(_SESSION_FILE)
 
         readline.set_completer_delims(' \t\n')
         if path.exists(_HISTORY_FILE):
@@ -123,22 +132,25 @@ class _ScroungerPrompt(_Cmd, object):
 
         if "exceptions" in result:
             for e in result["exceptions"]:
-                print("[-] Exception: {}".format(e))
+                self._print_error("Exception: {}".format(e.message))
 
         if "print" in result:
-            print("[+] {}".format(result.pop("print")))
+            self._print_status(result.pop("print"))
 
         for key in result:
             if key.endswith("_result") and validate_analysis_result(
                 result[key]):
-                print("[+] Analysis result: {} (Severity: {})".format(
-                    result[key]["title"], result[key]["severity"]))
-                print("    Should Be Reported: {}".format(
-                    "Yes" if result[key]["report"] else "No"))
+                print_result = "Analysis result: {} (Severity: {})".format(
+                    result[key]["title"], result[key]["severity"])
+                print_result = "{}\n    Should Be Reported: {}".format(
+                    print_result, "Yes" if result[key]["report"] else "No")
 
                 if "verbose" in self._session.global_options and \
                 self._session.global_options["verbose"].lower() == "true":
-                    print("    Details:\n{}".format(result[key]["details"]))
+                    print_result = "{}\n    Details:\n{}".format(
+                        print_result, result[key]["details"])
+
+                self._print_status(print_result)
 
     def do_run(self, args):
         """Runs the current active module"""
@@ -150,7 +162,7 @@ class _ScroungerPrompt(_Cmd, object):
             self._print_result(result)
             self._session.results.update(result)
         except Exception as e:
-            print("[-] Exception: {}".format(e))
+            self._print_error("Exception: {}".format(e.message))
 
             # print debug
             if "debug" in self._session.global_options and \
@@ -272,12 +284,12 @@ class _ScroungerPrompt(_Cmd, object):
                 from scrounger.core.device import AndroidDevice as Device
 
             try:
-                self._session.devices[max([0] + self._session.devices.keys()) + 1] ={
+                self._session.devices[max([0] + self._session.devices.keys()) + 1] = {
                     "device": Device(options[1]),
                     "type": options[0]
                 }
             except Exception as e:
-                print("[-] Device not found: {}".format(e))
+                self._print_error("Device not found: {}".format(e.message))
 
     def complete_add_device(self, text, line, start_index, end_index):
         os_types = ["android", "ios"]
@@ -316,6 +328,7 @@ class _ScroungerPrompt(_Cmd, object):
                 4: self._session.options[option["name"]]}
                 for option in self._session.module_options()
             ]
+
             self._print_list(header, list_items,
                 "Module Options ({})".format(self._session.module()))
 
@@ -372,8 +385,9 @@ keywords. Examples:
     def do_back(self, args):
         """Deactivates the activated module"""
         self.prompt = "\n{}scrounger{} > ".format(Color.UNDERLINE, Color.NORMAL)
-        self.options = {}
+        self._sessions.options = {}
         self._session.back()
+        self._session.prompt = self.prompt
 
     def do_use(self, module):
         """Activates a module to be used"""
@@ -384,9 +398,11 @@ keywords. Examples:
         try:
             self._session.use(module)
         except Exception as e:
-            print("[-] {}".format(e.message))
+            self._print_error("{}".format(e.message))
             self.prompt = "\n{}scrounger{} > ".format(
                 Color.UNDERLINE, Color.NORMAL)
+
+        self._session.prompt = self.prompt
 
         self._session.options = {}
         for option in self._session.module_options():
@@ -401,6 +417,100 @@ keywords. Examples:
         return [
             module for module in self._session.modules()
             if module.startswith(text)
+        ]
+
+    ############################################################################
+    #                         Session functions                                #
+    ############################################################################
+
+    def _create_session(self, name):
+        if name:
+            session = _Session(name)
+            self._sessions += [self._session]
+            self._session = session
+            self._print_status(
+                "Created and switched to session {}".format(name))
+            self.prompt = "\n{}scrounger{} > ".format(
+                Color.UNDERLINE, Color.NORMAL)
+            self._session.prompt = self.prompt
+
+    def _delete_session(self, name):
+        new_sessions = [
+            session for session in self._sessions
+            if name != session.name()
+        ]
+        if len(self._sessions) == len(new_sessions):
+            self._print_error("Session {} not found".format(name))
+        else:
+            self._sessions = new_sessions
+            self._print_status("Session {} deleted".format(name))
+
+    def _list_sessions(self):
+        header = {1: "Session Name"}
+        session_names = [session.name() for session in self._sessions] + \
+                ["{}*".format(self._session.name())]
+
+        list_items = [
+            {
+                1: session_name
+            } for session_name in session_names
+        ]
+
+        self._print_list(header, list_items, "Sessions")
+        print("\n*Current active session")
+
+    def _switch_session(self, name):
+        new_session = [
+            session for session in self._sessions
+            if session.name() == name
+        ]
+
+        if len(new_session) > 0:
+            new_session = new_session[0]
+            new_sessions = [
+                session for session in self._sessions
+                if session.name() != name
+            ] + [self._session]
+
+            self._sessions = new_sessions
+            self._session = new_session
+
+            self._print_status("Session switched to {}".format(name))
+            self.prompt = self._session.prompt
+        else:
+            self._print_error("Could not find session {}".format(name))
+
+    def do_sessions(self, args):
+        """Lists available sessions"""
+        self._list_sessions()
+
+    def do_session(self, options):
+        """Create, delete and switch sessions. Examples:
+    session create mysession - creates a new session named mysession
+    session delete default   - deletes a session named default
+    session list             - lists available sessions
+    session switch mysession - switches to a session named mysession
+    session mysession        - switches to a session named mysession"""
+        if "create " in options:
+            self._create_session(options.split("create ", 1)[-1])
+        elif "delete " in options:
+            self._delete_session(options.split("delete ", 1)[-1])
+        elif "list" in options:
+            self._list_sessions()
+        elif "switch " in options:
+            self._switch_session(options.split("switch ", 1)[-1])
+        else:
+            self._switch_session(options.split(" ", 1)[-1])
+
+    def complete_session(self, text, line, start_index, end_index):
+        options = [session.name() for session in self._sessions]
+        options += [self._session.name()]
+        if line.replace("session ", "").count(" ") == 0:
+            options += ["create", "delete", "list", "switch"]
+
+        return [
+            option for option in options
+            if option.startswith(text)
         ]
 
     ############################################################################
@@ -514,7 +624,6 @@ keywords. Examples:
     #                          Exit functions                                  #
     ############################################################################
 
-
     def do_exit(self, args):
         """Exits the program."""
         return self.do_quit(args)
@@ -525,6 +634,14 @@ keywords. Examples:
         for device in self._session.devices:
             if self._session.devices[device]["type"] == "ios":
                 self._session.devices[device]["device"].clean()
+
+        saved_sessions = [
+            session for session in self._sessions
+            if session.name() != "default"
+        ]
+        if self._session.name() != "default":
+            saved_sessions += [self._session]
+        _save_sessions(saved_sessions, _SESSION_FILE)
 
         self.postloop()
 
