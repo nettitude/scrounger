@@ -636,5 +636,4 @@ Excuting Module 0
 ## TODO
 
 * Add init file that is run everytime scrounger-console is started
-* Android providers with "@string" not being translated (?)
 * Fix session results saving when not strings

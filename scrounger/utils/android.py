@@ -134,6 +134,9 @@ def extract_providers(decompiled_app_path):
     from scrounger.utils.general import pretty_grep
     import re
 
+    # strings xml file
+    strings_xml = "{}/res/values/strings.xml".format(decompiled_app_path)
+
     providers_regex = r"content://[a-zA-Z0-1.-@/]+"
     providers = []
 
@@ -150,12 +153,27 @@ def extract_providers(decompiled_app_path):
             if provider_path.endswith("/"):
                 provider_path = provider_path[:-1]
 
-            # TODO: translate @string to value
+            # Translate @string
+            if "@string" in provider_path:
+                string_variable = "@string{}".format(
+                    provider_path.split("@string", 1)[-1])
+                provider_path = string(string_variable, strings_xml)
             providers.append(provider_path)
 
     # creates a set to make sure there are no duplicates and returns a sorted
     # list
     return sorted(set(providers))
+
+def method_names(decompiled_app_path, ignore):
+    """
+    Looks for method names from the smali code
+
+    :param str decompiled_app_path: the directory with the decompiled app
+    :param list ignore: a list of paths to be ignored
+    :return: list with method names
+    """
+    pass
+
 
 def smali_dirs(decompiled_apk_path):
     """
@@ -342,7 +360,7 @@ def parsed_providers(decompiled_app_path):
     manifest_providers = manifest.providers()
     for provider in manifest_providers:
         provider_string = string(provider["authority"], strings_xml)
-        if string(provider["name"]).startswith("."):
+        if string(provider["name"], strings_xml).startswith("."):
             provider_string = "{}{}".format(provider_string,
                 string(provider['name'], strings_xml))
 
