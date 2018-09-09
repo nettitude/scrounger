@@ -164,16 +164,152 @@ def extract_providers(decompiled_app_path):
     # list
     return sorted(set(providers))
 
-def method_names(decompiled_app_path, ignore):
+def method_names(decompiled_app_path, ignored):
     """
     Looks for method names from the smali code
 
     :param str decompiled_app_path: the directory with the decompiled app
-    :param list ignore: a list of paths to be ignored
+    :param list ignored: a list of paths to be ignored
     :return: list with method names
     """
-    pass
+    from scrounger.utils.general import pretty_grep
 
+    # grep method names from smali code
+    method_regex = r"\.method.*\(.*\)"
+    grep_result = pretty_grep(method_regex, decompiled_app_path)
+
+    methods = [] # we want repeated method names
+    for filename in grep_result:
+
+        # check if path not to be ignored
+        if not any([ignored_path in filename for ignored_path in ignored]):
+            for finding in grep_result[filename]:
+
+                # get method name
+                name = finding["details"].split("(", 1)[0].rsplit(" ", 1)[-1]
+                methods += [name]
+
+    # return sorted methods but not unique
+    return sorted(methods)
+
+def class_names(decompiled_app_path, ignored):
+    """
+    Looks for class names from the smali code
+
+    :param str decompiled_app_path: the directory with the decompiled app
+    :param list ignored: a list of paths to be ignored
+    :return: list with class names
+    """
+    from scrounger.utils.general import pretty_grep
+
+    # grep class names from smali code
+    class_regex = r"\.class.*L.*"
+    grep_result = pretty_grep(class_regex, decompiled_app_path)
+
+    classes = [] # we want repeated class names
+    for filename in grep_result:
+
+        # check if path not to be ignored
+        if not any([ignored_path in filename for ignored_path in ignored]):
+            for finding in grep_result[filename]:
+
+                # get class name
+                name = finding["details"].rsplit("/", 1)[-1].rsplit(";", 1)[0]
+                classes += [name]
+
+    # return sorted classes but not unique
+    return sorted(classes)
+
+def app_strings(decompiled_app_path, ignored):
+    """
+    Looks for strings in the smali code and xml files
+
+    :param str decompiled_app_path: the directory with the decompiled app
+    :param list ignored: a list of paths to be ignored
+    :return: list with strings
+    """
+    from scrounger.utils.general import pretty_grep
+
+    # grep class names from smali code
+    string_regex = r"\".*?\""
+
+    lsmali_dirs = smali_dirs(decompiled_app_path)
+    full_smali_path = []
+    for ldir in lsmali_dirs:
+        full_smali_path += ["{}/{}".format(decompiled_app_path, ldir)]
+    grep_result = pretty_grep(string_regex, " ".join(full_smali_path))
+
+    strings = [] # we want repeated string names
+    for filename in grep_result:
+
+        # check if path not to be ignored
+        if not any([ignored_path in filename for ignored_path in ignored]):
+            for finding in grep_result[filename]:
+
+                # get string name
+                name = finding["details"].split("\"")[1]
+                strings += [name]
+
+    return sorted(strings)
+
+def app_used_resources(decompiled_app_path, ignored):
+    """
+    Returns the strings that correspond to the used resources
+
+    :param str decompiled_app_path: the directory with the decompiled app
+    :param list ignored: a list of paths to be ignored
+    :return: list with strings
+    """
+    from scrounger.utils.general import pretty_grep
+
+    lsmali_dirs = smali_dirs(decompiled_app_path)
+    full_smali_path = []
+    for ldir in lsmali_dirs:
+        full_smali_path += ["{}/{}".format(decompiled_app_path, ldir)]
+
+    # find 0xXXXXX and look for it in xml files
+    xml_references_regex = r"const .*0x[a-z0-9]{8}"
+    grep_result = pretty_grep(xml_references_regex, " ".join(full_smali_path))
+
+    strings = [] # we want repeated string names
+    for filename in grep_result:
+
+        # check if path not to be ignored
+        if not any([ignored_path in filename for ignored_path in ignored]):
+            for finding in grep_result[filename]:
+                resource_id = finding["details"].strip().rsplit(" ", 1)[-1]
+                resource = public_resource(decompiled_app_path, resource_id)
+                if resource_id != resource:
+                    strings += [resource]
+
+    # return sorted classes but not unique
+    return sorted(strings)
+
+def public_resource(decompiled_app_path, resource_id):
+    """
+    Looks for strings reference for the resource
+
+    :param str decompiled_app_path: the directory with the decompiled app
+    :param str resource_id: the resource to look for
+    :return: a str witht he resource or the str with the resource id
+    """
+    from scrounger.utils.general import pretty_grep
+
+    # public xml file
+    public_xml = "{}/res/values/public.xml".format(decompiled_app_path)
+
+    grep_result = pretty_grep(resource_id, public_xml)
+
+    # if variable was not found
+    if len(grep_result) == 0:
+        return resource_id
+
+    # get the string from grep result
+    string = grep_result.popitem()[1][0]["details"]
+
+    # get the string between tags
+    # <public type="string" name="action_update" id="0x7f0c0015" />
+    return string.split("name=\"", 1)[-1].split("\" ", 1)[0]
 
 def smali_dirs(decompiled_apk_path):
     """
