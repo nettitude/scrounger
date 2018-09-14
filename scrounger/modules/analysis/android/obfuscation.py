@@ -5,6 +5,8 @@ from scrounger.utils.config import Log
 from scrounger.utils.android import class_names, method_names, app_strings
 from scrounger.utils.android import app_used_resources
 
+from scrounger.modules.misc.android.app.manifest import Module as ManifestModule
+
 from langdetect import detect_langs
 from time import sleep
 
@@ -30,10 +32,24 @@ check if the contents are obfuscated",
             "default": 98
         },
         {
+            "name": "min_percentage_small_names",
+            "description": "percentage of < 4 chars names to consider the name \
+obfuscated",
+            "required": True,
+            "default": 35
+        },
+        {
             "name": "language",
             "description": "the language to be detected",
             "required": True,
             "default": "en"
+        },
+        {
+            "name": "check_package_only",
+            "description": "looks at the package name and analyses only \
+classes that are in the path",
+            "required": False,
+            "default": "True"
         },
         {
             "name": "ignore",
@@ -46,7 +62,7 @@ check if the contents are obfuscated",
     def run(self):
         result = {
             "title": "Application Does Not Use Obfuscation",
-            "details": "",
+            "details": "No evidence of obfuscation found.",
             "severity": "Medium",
             "report": False
         }
@@ -54,17 +70,35 @@ check if the contents are obfuscated",
         # preparing variable to run
         ignore = [filepath.strip() for filepath in self.ignore.split(";")]
 
+        # get identifier
+        Log.info("Checking identifier package only")
+        if self.check_package_only.lower() == "true":
+            manifest_module = ManifestModule()
+            manifest_module.decompiled_apk = self.decompiled_apk
+            self.manifest = manifest_module.run()
+            if "print" not in self.manifest:
+                identifier = self.manifest.popitem()[1].package()
+            else:
+                identifier = None
+                result.upate({
+                    "exceptions": [Exception(self.manifest["print"])]
+                })
+
         Log.info("Identifying class names")
-        class_names_list = class_names(self.decompiled_apk, ignore)
+        class_names_list = class_names(self.decompiled_apk, ignore, identifier)
 
         Log.info("Identifying method names")
-        method_names_list = method_names(self.decompiled_apk, ignore)
+        method_names_list = method_names(self.decompiled_apk, ignore,
+            identifier)
 
         Log.info("Identifying strings")
-        strings_list = app_strings(self.decompiled_apk, ignore)
+        strings_list = app_strings(self.decompiled_apk, ignore, identifier)
 
         Log.info("Identifying resources")
-        resources_list = app_used_resources(self.decompiled_apk, ignore)
+        resources_list = app_used_resources(self.decompiled_apk, ignore,
+            identifier)
+
+        # start by analysing class names
 
         class_detect_lang = detect_langs(" ".join(class_names_list))[0]
         class_small_names = [
@@ -78,10 +112,24 @@ check if the contents are obfuscated",
         class_detect_lang.prob*100 < self.min_percentage:
             result.update({
                 "title": "Application shows evidence of obfuscation",
-                "details": "{}\n\nDetected language {} with probability {} on \
-class names.".format(result["details"],
-                    class_detect_lang.lang, class_detect_lang.prob)
+                "details": "Detected language {} with probability {} on \
+class names.".format(class_detect_lang.lang, class_detect_lang.prob)
             })
+
+        # check small_classes/total_classes >= min_percent_class_names
+        sclass_percent = len(class_small_names)*1.0/len(class_names_list)*100
+        if sclass_percent >= self.min_percentage_small_names:
+            result.update({
+                "title": "Application shows evidence of obfuscation",
+                "details": "{}\n\nDetected small class names: {}%".format(
+                    sclass_percent)
+            })
+
+        # analyse method names
+
+
+
+        # analyse strings and resources
 
         #b=scrounger.modules.analysis.android.obfuscation.Module();
         #b.decompiled_apk = "/tmp/tests/t2/a";

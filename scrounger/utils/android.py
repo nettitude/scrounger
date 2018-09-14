@@ -164,15 +164,25 @@ def extract_providers(decompiled_app_path):
     # list
     return sorted(set(providers))
 
-def method_names(decompiled_app_path, ignored):
+def method_names(decompiled_app_path, ignored, identifier=None):
     """
     Looks for method names from the smali code
 
     :param str decompiled_app_path: the directory with the decompiled app
     :param list ignored: a list of paths to be ignored
+    :param str identifier: if set it tries to identify only class names in the
+    path equivalent to the identifier
     :return: list with method names
     """
     from scrounger.utils.general import pretty_grep
+
+    # prepare identifier paths
+    identifier_paths = []
+    if identifier:
+        identifier_path = identifier.replace(".", "/")
+        while identifier_path.count("/") > 1:
+            identifier_paths += [identifier_path]
+            identifier_path = identifier_path.rsplit("/", 1)[0]
 
     # grep method names from smali code
     method_regex = r"\.method.*\(.*\)"
@@ -181,8 +191,13 @@ def method_names(decompiled_app_path, ignored):
     methods = [] # we want repeated method names
     for filename in grep_result:
 
-        # check if path not to be ignored
-        if not any([ignored_path in filename for ignored_path in ignored]):
+        # check if path not to be ignored and filder identifier paths
+        if not any([ignored_path in filename for ignored_path in ignored]) and \
+        ((
+            identifier and \
+            any([id_path in filename for id_path in identifier_paths])
+        ) or not identifier):
+
             for finding in grep_result[filename]:
 
                 # get method name
@@ -192,15 +207,25 @@ def method_names(decompiled_app_path, ignored):
     # return sorted methods but not unique
     return sorted(methods)
 
-def class_names(decompiled_app_path, ignored):
+def class_names(decompiled_app_path, ignored, identifier=None):
     """
     Looks for class names from the smali code
 
     :param str decompiled_app_path: the directory with the decompiled app
     :param list ignored: a list of paths to be ignored
+    :param str identifier: if set it tries to identify only class names in the
+    path equivalent to the identifier
     :return: list with class names
     """
     from scrounger.utils.general import pretty_grep
+
+    # prepare identifier paths
+    identifier_paths = []
+    if identifier:
+        identifier_path = identifier.replace(".", "/")
+        while identifier_path.count("/") > 1:
+            identifier_paths += [identifier_path]
+            identifier_path = identifier_path.rsplit("/", 1)[0]
 
     # grep class names from smali code
     class_regex = r"\.class.*L.*"
@@ -209,8 +234,13 @@ def class_names(decompiled_app_path, ignored):
     classes = [] # we want repeated class names
     for filename in grep_result:
 
-        # check if path not to be ignored
-        if not any([ignored_path in filename for ignored_path in ignored]):
+        # check if path not to be ignored and filder identifier paths
+        if not any([ignored_path in filename for ignored_path in ignored]) and \
+        ((
+            identifier and \
+            any([id_path in filename for id_path in identifier_paths])
+        ) or not identifier):
+
             for finding in grep_result[filename]:
 
                 # get class name
@@ -220,15 +250,25 @@ def class_names(decompiled_app_path, ignored):
     # return sorted classes but not unique
     return sorted(classes)
 
-def app_strings(decompiled_app_path, ignored):
+def app_strings(decompiled_app_path, ignored, identifier=None):
     """
     Looks for strings in the smali code and xml files
 
     :param str decompiled_app_path: the directory with the decompiled app
     :param list ignored: a list of paths to be ignored
+    :param str identifier: if set it tries to identify only class names in the
+    path equivalent to the identifier
     :return: list with strings
     """
     from scrounger.utils.general import pretty_grep
+
+    # prepare identifier paths
+    identifier_paths = []
+    if identifier:
+        identifier_path = identifier.replace(".", "/")
+        while identifier_path.count("/") > 1:
+            identifier_paths += [identifier_path]
+            identifier_path = identifier_path.rsplit("/", 1)[0]
 
     # grep class names from smali code
     string_regex = r"\".*?\""
@@ -242,8 +282,13 @@ def app_strings(decompiled_app_path, ignored):
     strings = [] # we want repeated string names
     for filename in grep_result:
 
-        # check if path not to be ignored
-        if not any([ignored_path in filename for ignored_path in ignored]):
+        # check if path not to be ignored and filder identifier paths
+        if not any([ignored_path in filename for ignored_path in ignored]) and \
+        ((
+            identifier and \
+            any([id_path in filename for id_path in identifier_paths])
+        ) or not identifier):
+
             for finding in grep_result[filename]:
 
                 # get string name
@@ -252,15 +297,25 @@ def app_strings(decompiled_app_path, ignored):
 
     return sorted(strings)
 
-def app_used_resources(decompiled_app_path, ignored):
+def app_used_resources(decompiled_app_path, ignored, identifier=None):
     """
     Returns the strings that correspond to the used resources
 
     :param str decompiled_app_path: the directory with the decompiled app
     :param list ignored: a list of paths to be ignored
+    :param str identifier: if set it tries to identify only class names in the
+    path equivalent to the identifier
     :return: list with strings
     """
     from scrounger.utils.general import pretty_grep
+
+    # prepare identifier paths
+    identifier_paths = []
+    if identifier:
+        identifier_path = identifier.replace(".", "/")
+        while identifier_path.count("/") > 1:
+            identifier_paths += [identifier_path]
+            identifier_path = identifier_path.rsplit("/", 1)[0]
 
     lsmali_dirs = smali_dirs(decompiled_app_path)
     full_smali_path = []
@@ -274,8 +329,13 @@ def app_used_resources(decompiled_app_path, ignored):
     strings = [] # we want repeated string names
     for filename in grep_result:
 
-        # check if path not to be ignored
-        if not any([ignored_path in filename for ignored_path in ignored]):
+        # check if path not to be ignored and filder identifier paths
+        if not any([ignored_path in filename for ignored_path in ignored]) and \
+        ((
+            identifier and \
+            any([id_path in filename for id_path in identifier_paths])
+        ) or not identifier):
+
             for finding in grep_result[filename]:
                 resource_id = finding["details"].strip().rsplit(" ", 1)[-1]
                 resource = public_resource(decompiled_app_path, resource_id)
