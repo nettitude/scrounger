@@ -36,7 +36,7 @@ check if the contents are obfuscated",
             "description": "percentage of < 4 chars names to consider the name \
 obfuscated",
             "required": True,
-            "default": 35
+            "default": 20
         },
         {
             "name": "language",
@@ -62,10 +62,12 @@ classes that are in the path",
     def run(self):
         result = {
             "title": "Application Does Not Use Obfuscation",
-            "details": "No evidence of obfuscation found.",
+            "details": "",
             "severity": "Medium",
             "report": False
         }
+
+        exceptions = []
 
         # preparing variable to run
         ignore = [filepath.strip() for filepath in self.ignore.split(";")]
@@ -80,9 +82,7 @@ classes that are in the path",
                 identifier = self.manifest.popitem()[1].package()
             else:
                 identifier = None
-                result.upate({
-                    "exceptions": [Exception(self.manifest["print"])]
-                })
+                exceptions += [Exception(self.manifest["print"])]
 
         Log.info("Identifying class names")
         class_names_list = class_names(self.decompiled_apk, ignore, identifier)
@@ -98,8 +98,9 @@ classes that are in the path",
         resources_list = app_used_resources(self.decompiled_apk, ignore,
             identifier)
 
-        # start by analysing class names
+        Log.info("Analysing identified strings")
 
+        # start by analysing class names
         class_detect_lang = detect_langs(" ".join(class_names_list))[0]
         class_small_names = [
             class_name for class_name in class_names_list
@@ -112,8 +113,9 @@ classes that are in the path",
         class_detect_lang.prob*100 < self.min_percentage:
             result.update({
                 "title": "Application shows evidence of obfuscation",
-                "details": "Detected language {} with probability {} on \
-class names.".format(class_detect_lang.lang, class_detect_lang.prob)
+                "details": "Detected language {} with probability {}% on \
+class names.".format(class_detect_lang.lang, class_detect_lang.prob*100),
+                "report": True
             })
 
         # check small_classes/total_classes >= min_percent_class_names
@@ -122,80 +124,88 @@ class names.".format(class_detect_lang.lang, class_detect_lang.prob)
             result.update({
                 "title": "Application shows evidence of obfuscation",
                 "details": "{}\n\nDetected small class names: {}%".format(
-                    sclass_percent)
+                    result["details"], sclass_percent),
+                "report": True
             })
+
+        Log.debug("Classes detected {} with probability of {}%".format(
+            class_detect_lang.lang, class_detect_lang.prob*100
+        ))
+        Log.debug("Small len classes {}/{} = {}%".format(
+            len(class_small_names), len(class_names_list), sclass_percent
+        ))
+        Log.debug("Unique small len classes {}/{} = {}%".format(
+            len(set(class_small_names)), len(set(class_names_list)),
+            len(set(class_small_names))*1.0/len(set(class_names_list))*100
+        ))
 
         # analyse method names
+        method_detect_lang = detect_langs(" ".join(method_names_list))[0]
+        method_small_names = [
+            method_name for method_name in method_names_list
+            if len(method_name) < 4
+        ]
 
+        # check if lang != expected or probability lower than required for
+        # method names
+        if method_detect_lang.lang != self.language or \
+        method_detect_lang.prob*100 < self.min_percentage:
+            result.update({
+                "title": "Application shows evidence of obfuscation",
+                "details": "{}\n\nDetected language {} with probability {}% on \
+method names.".format(result["details"], method_detect_lang.lang,
+                    method_detect_lang.prob*100),
+                "report": True
+            })
 
+        # check small_methods/total_methods >= min_percent_mathod_names
+        smthod_percent = len(method_small_names)*1.0/len(method_names_list)*100
+        if smthod_percent >= self.min_percentage_small_names:
+            result.update({
+                "title": "Application shows evidence of obfuscation",
+                "details": "{}\n\nDetected small method names: {}%".format(
+                    result["details"], smthod_percent),
+                "report": True
+            })
+
+        Log.debug("Methods detected {} with probability of {}%".format(
+            method_detect_lang.lang, method_detect_lang.prob*100
+        ))
+        Log.debug("Small len methods {}/{} = {}%".format(
+            len(method_small_names), len(method_names_list), smthod_percent
+        ))
+        Log.debug("Unique small len classes {}/{} = {}%".format(
+            len(set(method_small_names)), len(set(method_names_list)),
+            len(set(method_small_names))*1.0/len(set(method_names_list))*100
+        ))
 
         # analyse strings and resources
+        strings_detect_lang = detect_langs(
+            " ".join(strings_list + resources_list))[0]
 
-        #b=scrounger.modules.analysis.android.obfuscation.Module();
-        #b.decompiled_apk = "/tmp/tests/t2/a";
-        #b.ignore="/com/google/;/android/support/"; b.language="en";
-        #b.min_percentage=100
-
-        # get function names
-        # get var names
-        # get strings
-
-        # class name example
-        # .class public Lcom/myhost/android/BookingActivity;
-        # \.class.*L.*; [split "/" -1 replace ;]
-
-        # function name example
-        #.method static synthetic a(Lcom/myhost/android/BookingActivity;)V
-        #\.method.*\(.*\) [split "(" 0 rsplit " " -1]
-
-        # strings
-        #./android/OpeningActivity.smali:195:    const-string p3, "data"
-        #\".*?\"
-        #const v1, 0x7f0c0016
-        #const.*0x[a-z0-9]{8}
-
-        # count number or method and functions names that are smaller than 4 chars
-        # if > 0.4
-
-        """
-        if not self.device.installed(self.identifier):
-            return {"print": "Application not installed"}
-
-        Log.info("Starting the application")
-        self.device.start(self.identifier)
-        sleep(5)
-
-        Log.info("Finding files in application's data")
-        target_paths = ["{}/shared_prefs".format(file_path) for file_path in
-            self.device.data_paths(self.identifier)]
-
-        listed_files = []
-        report_files = []
-        for data_path in target_paths:
-            listed_files += self.device.find_files(data_path)
-
-        Log.info("Analysing application's data")
-
-        for filename in listed_files:
-            if filename:
-                file_content = self.device.file_content(filename)
-
-                lang = detect_langs(file_content)[0]
-                Log.debug("{} language {}: {}".format(filename,
-                    lang.lang, lang.prob))
-
-                if lang.prob > float("0.{}".format(self.min_percentage)):
-                    report_files += [filename]
-
-        if report_files:
+        # check if lang != expected or probability lower than required for
+        # strings and resources
+        if strings_detect_lang.lang != self.language or \
+        strings_detect_lang.prob*100 < self.min_percentage:
             result.update({
-                "report": True,
-                "details": "* Unencrypted Files:\n * {}".format("\n * ".join(
-                    report_files))
+                "title": "Application shows evidence of obfuscation",
+                "details": "{}\n\nDetected language {} with probability {}% on \
+strings and resources.".format(result["details"], strings_detect_lang.lang,
+                    strings_detect_lang.prob*100),
+                "report": True
             })
-        """
+
+        Log.debug("Strings detected {} with probability of {}%".format(
+            strings_detect_lang.lang, strings_detect_lang.prob*100
+        ))
+
+        if not result["report"]:
+            result.update({
+                "details": "No evidence of obfuscation found."
+            })
 
         return {
-            "{}_result".format(self.name()): result
+            "{}_result".format(self.name()): result,
+            "exceptions": exceptions
         }
 
