@@ -301,7 +301,7 @@ def save_class_dump(class_dump, local_file_path):
 
     // base_methods
 
-    // instance_ methods
+    // instance_methods
 
     // protocols
     """

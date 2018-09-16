@@ -201,7 +201,8 @@ strings and resources.".format(result["details"], strings_detect_lang.lang,
 
         if not result["report"]:
             result.update({
-                "details": "No evidence of obfuscation found."
+                "details": "No evidence of obfuscation found.",
+                "report": True
             })
 
         return {
