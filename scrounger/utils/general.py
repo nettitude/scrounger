@@ -174,6 +174,79 @@ def pretty_grep_to_str(grep_result, haystack, ignore=None):
 
     return final_str
 
+# ******************************************************************************
+# Interactive Process
+# ******************************************************************************
+
+class InteractiveProcess(object):
+    """
+    Class representing an object that interacts with a binary multiple times
+    """
+    _process = _command = _executable = None
+
+    def __init__(self, command):
+        """
+        Creates an interactive process to interact with out of a command
+
+        :param str command: the command to be executed
+        """
+
+        from fcntl import fcntl, F_GETFL, F_SETFL
+        from subprocess import Popen, PIPE
+        import os
+
+        self._command = command
+        self._executable = command.split(" ", 1)[0]
+
+        _Log.debug("Starting the interactive process: {}".format(command))
+
+        self._process = Popen(command, shell=True, stdout=PIPE, stdin=PIPE)
+        fcntl(self._process.stdin, F_SETFL,
+            fcntl(self._process.stdin, F_GETFL) | os.O_NONBLOCK)
+        fcntl(self._process.stdout, F_SETFL,
+            fcntl(self._process.stdout, F_GETFL) | os.O_NONBLOCK)
+
+    def write(self, command):
+        """
+        Writes a command into the interactive process
+
+        :param str command: the command to be sent to the interactive process
+        :return: nothing
+        """
+        import os
+
+        _Log.debug("Sending to process {}: {}".format(
+            self._executable, command))
+
+        # add a new line and send the command to the process stdin
+        os.write(self._process.stdin.fileno(), "{}\n".format(command))
+
+    def read(self):
+        """
+        Reads from the process stdout
+
+        :return: a str with the stdout result or None
+        """
+        import os
+
+        try:
+            return self._process.stdout.read()
+        except:
+            _Log.debug("Nothing to read from {}".format(self._executable))
+            # there is nothing to read, return None
+            return None
+
+    def kill(self):
+        """
+        Stops the process - avoid hanging process
+        """
+        # try to communicate first and then kill
+        try:
+            self._process.communicate("")
+            self._process.kill()
+        except:
+            # couldn't kill
+            pass
 
 # ******************************************************************************
 # Requires Decorator
