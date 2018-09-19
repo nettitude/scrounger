@@ -38,7 +38,7 @@ As a disclaimer, all identified findings by **Scrounger** should always be manua
 ## Install
 
 ```
-git pull https://github.com/nettitude/scrounger.git
+git clone https://github.com/nettitude/scrounger.git
 cd scrounger
 bash setup.sh
 pip install -r requirements.txt
