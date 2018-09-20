@@ -62,6 +62,7 @@ class IOSDevice(BaseDevice):
         from scrounger.utils.general import process
         from scrounger.utils.config import SSH_COMMAND_TIMEOUT
         from scrounger.utils.config import SSH_SESSION_TIMEOUT
+        from scrounger.utils.config import _SCROUNGER_HOME
 
         # setup
         if not self._ssh_session:
@@ -75,6 +76,11 @@ class IOSDevice(BaseDevice):
 
             # Log a new sessions
             _Log.debug("new ssh session started.")
+
+        # add scrounger's key
+        key_path = "{}/bin/ios/scrounger.pub".format(_SCROUNGER_HOME)
+        if not self._ssh_session.add_key(key_path):
+            _Log.debug("Scrounger's ssh key not in authorized_keys")
 
         # start a tiemout for the connection
         from threading import Timer

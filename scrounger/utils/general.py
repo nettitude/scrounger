@@ -200,7 +200,8 @@ class InteractiveProcess(object):
 
         _Log.debug("Starting the interactive process: {}".format(command))
 
-        self._process = Popen(command, shell=True, stdout=PIPE, stdin=PIPE)
+        self._process = Popen(command, shell=True, stdout=PIPE, stdin=PIPE,
+            stderr=PIPE)
         fcntl(self._process.stdin, F_SETFL,
             fcntl(self._process.stdin, F_GETFL) | os.O_NONBLOCK)
         fcntl(self._process.stdout, F_SETFL,
