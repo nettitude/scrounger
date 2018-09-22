@@ -40,6 +40,9 @@ def _create_custom_modules_paths():
     for binary in binaries.split("\n"):
         execute("cp {} {}".format(binary, installed_path))
 
+    # change scrounger's private key perms
+    execute("chmod 600 {}/bin/ios/scrounger.key".format(_SCROUNGER_HOME))
+
 class _pre_install(install):
     def run(self):
         _create_custom_modules_paths()

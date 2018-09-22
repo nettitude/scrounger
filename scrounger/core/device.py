@@ -69,7 +69,9 @@ class IOSDevice(BaseDevice):
             # this was breaking
             #self._iproxy_process = process(
             #    'iproxy 2222 22 {}'.format(self._device_id))
-            self._iproxy_process = process("iproxy 2222 22")
+
+            # TODO: replace with tcprelay / usbmuxd
+            #self._iproxy_process = process("iproxy 2222 22")
             self._ssh_session = SSHClient("127.0.0.1", 2222,
                 self._username, self._password, SSH_COMMAND_TIMEOUT)
             self._ssh_session.connect()
@@ -105,7 +107,7 @@ class IOSDevice(BaseDevice):
             self._ssh_session.disconnect()
             #self._iproxy_process.kill()
             self._iproxy_process = self._ssh_session = None
-            execute('killall iproxy') # make sure iproxy is killed
+            # execute('killall iproxy') # make sure iproxy is killed
 
             # Log session stop
             _Log.debug("ssh session killed.")
@@ -272,7 +274,8 @@ class IOSDevice(BaseDevice):
             from json import loads
 
             apps = {}
-            listed_apps = self.execute("listapps -j -d")[0].replace("\n", "").replace("'", "\"")
+            listed_apps = self.execute(
+                "listapps -j -d")[0].replace("\n", "").replace("'", "\"")
 
             listed_apps = loads(listed_apps)
             for app in listed_apps["apps"]:
@@ -469,22 +472,77 @@ class IOSDevice(BaseDevice):
 
         return _find_files(paths)
 
+
+    def processes(self):
+        """
+        Returns a list of running processes, their users and pids
+
+        :return: a list of dicts of processes
+        """
+        @_requires_android_binary(self, "ps")
+        def _processes():
+            from scrounger.utils.general import remove_multiple_spaces
+
+            processes_list = []
+            for process in self.execute("ps aux")[0].split("\n"):
+                if not process: continue
+                process = remove_multiple_spaces(process.strip())
+                fields = process.split(" ")
+                app_user = fields[0]
+                app_pid  = fields[1]
+
+                # if the app has spaces in the name
+                app_name = " ".join(fields[10:])
+
+                processes_list += [{
+                    "name": app_name,
+                    "user": app_user,
+                    "pid": app_pid
+                }]
+
+            return processes_list
+
+        return _processes()
+
     # **************************************************************************
     # Applications functions
     # **************************************************************************
 
-    def start(self, binary_path):
+    def pid(self, app_id):
+        """
+        Returns the PID of a running application
+
+        :param str app_id: the identifier of the app to get the PID from
+        :return int: a PID if the app with app_id is running or None if not
+        """
+        apps = self.apps()
+        if app_id not in apps:
+            _Log.debug("App {} is not installed on the device".format(app_id))
+            return None
+
+        install_path = apps[app_id]["display_name"]
+        processes = self.processes()
+        for process in processes:
+            if install_path.lower() in process["name"].lower():
+                return int(process["pid"])
+
+        return None
+
+    def start(self, app_id):
         """
         Starts an application on the connected device
 
-        :param str binary_path: the application to start
+        :param str app_id: the application identifier
         :return: the result of opening the app
         """
-        @_requires_ios_binary(self, "open")
-        def _start(binary_path):
-            return self.execute("open {}".format(binary_path))
 
-        return _start(binary_path)
+        # com.conradkramer.open
+        # iOS 11 - https://github.com/GaryniL/Open/releases
+        @_requires_ios_binary(self, "open")
+        def _start(app_id):
+            return self.execute("open {}".format(app_id))
+
+        return _start(app_id)
 
     def pull_data_contents(self, data_path, local_path):
         """

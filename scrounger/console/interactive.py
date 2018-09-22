@@ -534,7 +534,7 @@ keywords. Examples:
             from scrounger.utils.general import execute
             execute("mkdir -p {}".format(value))
 
-        if key.lower() == "debug" and value.lower() == "true":
+        if key.lower() == "debug" and value.strip().lower() == "true":
             import logging as _logging
             Log.setLevel(_logging.DEBUG)
 

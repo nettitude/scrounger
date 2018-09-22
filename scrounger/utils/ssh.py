@@ -111,7 +111,7 @@ class SSHClient(object):
 
         # check if authorized_keys exists
         stdout, stderr = self.execute("ls ~/.ssh/authorized_keys")
-        if "no such file" in stderr.lower():
+        if stderr and "no such file" in stderr.lower():
             # try to create .ssh
             self.execute("mkdir -p ~/.ssh")
             # create empty authorized_keys
@@ -126,10 +126,11 @@ class SSHClient(object):
         authorized_keys, stderr = self.execute("cat ~/.ssh/authorized_keys")
 
         # append the public key to the authorized_keys file
-        if public_key not in authorized_keys:
-            self.execute("echo {} >> ~/.ssh/authorized_keys".format(public_key))
+        if authorized_keys and public_key not in authorized_keys:
+            self.execute(
+                "echo \"{}\" >> ~/.ssh/authorized_keys".format(public_key))
 
         # read authorized_keys content again
         authorized_keys, stderr = self.execute("cat ~/.ssh/authorized_keys")
 
-        return public_key in authorized_keys
+        return authorized_keys and public_key in authorized_keys

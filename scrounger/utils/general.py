@@ -281,7 +281,7 @@ class IOSBinaryNotFoundException(BinaryNotFoundException):
 
     BUNDLED_IOS_BINARIES = [
         "clutch", "dump_file_protection", "dump_backup_flag", "dump_keychain",
-        "dump_log",
+        "dump_log", "listapps", "gdb"
     ]
 
 class AndroidBinaryNotFoundException(BinaryNotFoundException):

@@ -19,16 +19,24 @@ class Module(BaseModule):
         },
         {
             "name": "binaries",
-            "description": "list of bianries to install - semerated by ;",
+            "description": "list of bianries to install - seperated by ;",
             "required": True,
             "default": "clutch;dump_backup_flag;dump_file_protection;\
-dump_keychain;dump_log;listapps"
+dump_keychain;dump_log;listapps;open"
+        },
+        {
+            "name": "packages",
+            "description": "list of packages to install - seperated by ;",
+            "required": True,
+            "default": "gdb"
         }
     ]
 
     def run(self):
         Log.info("Installing binaries")
         binaries_to_install = self.binaries.split(";")
+        packages_to_install = [
+            "{}.deb".format(package) for package in self.packages.split(";")]
         binaries_local_path = "{}/bin/ios".format(_SCROUNGER_HOME)
 
         for binary in binaries_to_install:
@@ -37,6 +45,11 @@ dump_keychain;dump_log;listapps"
 
             if not installed:
                 Log.error("Could not install {}".format(binary))
+
+        for package in packages_to_install:
+            self.device.put("{}/{}".format(binaries_local_path, package),
+                "/tmp/{}".format(package))
+            self.device.execute("dpkg -i /tmp/{}".format(package))
 
         return {
             "print": "Binaries installed."
