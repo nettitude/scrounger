@@ -12,7 +12,7 @@ class GDB(object):
     An object representing a gdb on the remote device
     """
 
-    _process = _device = _last_read = None
+    _relay = _process = _device = _last_read = None
     _running = False
 
     def __init__(self, device):
@@ -22,9 +22,14 @@ class GDB(object):
 
         :param IOSDevice device: A device representing the remote device
         """
+        from scrounger.lib.tcprelay import create_server
+
         self._device = device
-        host, port = device._ssh_session._ip, device._ssh_session._port
+        host, port = "localhost", 52222
         key = "{}/bin/ios/scrounger.key".format(_SCROUNGER_HOME)
+
+        # start a new tcprelay
+        self._relay = create_server("localhost", "22", 52222)
 
         _log.debug("Starting a new SSH connection to the remote device")
         self._process = InteractiveProcess("ssh -i {} -p {} root@{}".format(
@@ -79,6 +84,9 @@ class GDB(object):
         if self._running:
             self.execute("quit\ny\n") # exit GDB
         self._process.kill()
+
+        # stop tcprelay
+        self._relay.stop()
 
 def devices():
     """

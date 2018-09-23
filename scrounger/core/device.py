@@ -26,7 +26,7 @@ class IOSDevice(BaseDevice):
     This class will be used as a bridge between the host and the ios device
     """
 
-    _ssh_session = _iproxy_process = _timer = None
+    _ssh_session = _relay_process = _timer = None
 
     # **************************************************************************
     # Object helper functions
@@ -53,25 +53,20 @@ class IOSDevice(BaseDevice):
         """ Returns the device ID """
         return self._device_id
 
-    @_requires_binary("iproxy")
     def _start_connection(self):
         """
         Starts an SSH connection to the remote device
         """
         from scrounger.utils.ssh import SSHClient
-        from scrounger.utils.general import process
         from scrounger.utils.config import SSH_COMMAND_TIMEOUT
         from scrounger.utils.config import SSH_SESSION_TIMEOUT
         from scrounger.utils.config import _SCROUNGER_HOME
+        from scrounger.lib.tcprelay import create_server
 
         # setup
         if not self._ssh_session:
-            # this was breaking
-            #self._iproxy_process = process(
-            #    'iproxy 2222 22 {}'.format(self._device_id))
 
-            # TODO: replace with tcprelay / usbmuxd
-            #self._iproxy_process = process("iproxy 2222 22")
+            self._relay_process = create_server()
             self._ssh_session = SSHClient("127.0.0.1", 2222,
                 self._username, self._password, SSH_COMMAND_TIMEOUT)
             self._ssh_session.connect()
@@ -105,9 +100,8 @@ class IOSDevice(BaseDevice):
 
         if self._ssh_session:
             self._ssh_session.disconnect()
-            #self._iproxy_process.kill()
-            self._iproxy_process = self._ssh_session = None
-            # execute('killall iproxy') # make sure iproxy is killed
+            self._relay_process.stop()
+            self._relay_process = self._ssh_session = None
 
             # Log session stop
             _Log.debug("ssh session killed.")
