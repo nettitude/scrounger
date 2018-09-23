@@ -206,6 +206,8 @@ class InteractiveProcess(object):
             fcntl(self._process.stdin, F_GETFL) | os.O_NONBLOCK)
         fcntl(self._process.stdout, F_SETFL,
             fcntl(self._process.stdout, F_GETFL) | os.O_NONBLOCK)
+        fcntl(self._process.stderr, F_SETFL,
+            fcntl(self._process.stderr, F_GETFL) | os.O_NONBLOCK)
 
     def write(self, command):
         """
@@ -234,6 +236,21 @@ class InteractiveProcess(object):
             return self._process.stdout.read()
         except:
             _Log.debug("Nothing to read from {}".format(self._executable))
+            # there is nothing to read, return None
+            return None
+
+    def error(self):
+        """
+        Reads from the process stderr
+
+        :return: a str with the stderr result or None
+        """
+        import os
+
+        try:
+            return self._process.stderr.read()
+        except:
+            _Log.debug("Nothing to read stderr {}".format(self._executable))
             # there is nothing to read, return None
             return None
 

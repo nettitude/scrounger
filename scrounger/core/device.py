@@ -823,6 +823,25 @@ class AndroidDevice(BaseDevice):
 
         return _packages()
 
+    def pid(self, package):
+        """
+        Returns the PID of a running application
+
+        :param str package: the identifier of the app to get the PID from
+        :return int: a PID if the app with package is running or None if not
+        """
+        apps = self.packages()
+        if package not in apps:
+            _Log.debug("App {} is not installed on the device".format(package))
+            return None
+
+        processes = self.processes()
+        for process in processes:
+            if package.lower() in process["name"].lower():
+                return int(process["pid"])
+
+        return None
+
     def apps(self):
         """
         Returns a list of installed apps on target device (just a wrapper for

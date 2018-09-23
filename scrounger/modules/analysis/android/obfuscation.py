@@ -49,7 +49,7 @@ obfuscated",
             "description": "looks at the package name and analyses only \
 classes that are in the path",
             "required": False,
-            "default": "True"
+            "default": True
         },
         {
             "name": "ignore",
@@ -74,7 +74,7 @@ classes that are in the path",
 
         # get identifier
         Log.info("Checking identifier package only")
-        if self.check_package_only.lower() == "true":
+        if self.check_package_only:
             manifest_module = ManifestModule()
             manifest_module.decompiled_apk = self.decompiled_apk
             self.manifest = manifest_module.run()

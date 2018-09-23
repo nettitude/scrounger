@@ -125,6 +125,12 @@ class _ScroungerPrompt(_Cmd, object):
             if value == None or value == "None" or not value:
                 value = ""
 
+            if value and str(value).lower().strip() == "true":
+                value = True
+
+            if value and str(value).lower().strip() == "false":
+                value = False
+
             setattr(module, option, value)
 
     def _print_result(self, result):
@@ -385,7 +391,7 @@ keywords. Examples:
     def do_back(self, args):
         """Deactivates the activated module"""
         self.prompt = "\n{}scrounger{} > ".format(Color.UNDERLINE, Color.NORMAL)
-        self._sessions.options = {}
+        self._session.options = {}
         self._session.back()
         self._session.prompt = self.prompt
 

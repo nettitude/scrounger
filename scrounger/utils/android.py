@@ -2,8 +2,79 @@
 Module with android utility functions.
 """
 
-from scrounger.utils.general import requires_binary
+from scrounger.utils.general import requires_binary, InteractiveProcess
 from scrounger.utils.general import execute as _execute
+from scrounger.utils.config import Log as _log
+
+class JDB(object):
+    """
+    An object representing a jdb on the remote device
+    """
+
+    _process = _host = _port = None
+    _last_read = _last_error = None
+    _running = False
+
+    def __init__(self, host, port):
+        """
+        Creates a new JDB object representiong a JDB instance on the remote
+        device
+
+        :param str host: the host to connect JDB to
+        :param int port: the port where JDB app is listening
+        """
+        from time import sleep
+
+        self._host, self._port = host, port
+
+        _log.debug("Starting a new jdb process")
+        self._process = InteractiveProcess("jdb -attach {}:{}".format(
+            host, port))
+
+        sleep(5) # wait for it to start
+
+        self._last_read = self._process.read()
+        self._last_error = self._process.error()
+
+        self._running = not self._last_error or (self._last_error and \
+            "unable to attach" not in self._last_error.lower())
+
+    def running(self):
+        """Returns True if the application is running or False if it is not"""
+        return self._running
+
+    def execute(self, jdb_command):
+        """
+        Executes a command in the remote jdb
+
+        :param str jdb_command: the jdb command to execute
+        :return: the result of the command as a str
+        """
+        if not self._running:
+            return "JDB not running."
+
+        self._process.write(jdb_command)
+        self._last_read = self._process.read()
+        return self._last_read
+
+    def read(self):
+        """
+        Returns new content from the jdb if any or the last read content
+
+        :return: new content from jdb stdout or last read content
+        """
+        new_content = self._process.read()
+        if new_content:
+            self._last_read = new_content
+        return self._last_read
+
+    def exit(self):
+        """
+        Exits JDB and kills the process
+        """
+        if self._running:
+            self.execute("quit") # exit JDB
+        self._process.kill()
 
 @requires_binary("adb")
 def _adb_command(command):
@@ -14,6 +85,22 @@ def _adb_command(command):
     :return: stdout and stderr from the executed command
     """
     return _execute("adb {}".format(command)).replace("\r\n", "\n")
+
+
+def forward(local_port, pid):
+    """
+    Forwards a local port to the PID of the app for JDB to connect
+
+    :param int local_port: the local port that will forward to the remote APP
+    :param int pid: the PID of the app to be debugged
+    """
+    return _adb_command("forward tcp:{} jdwp:{}".format(local_port, pid))
+
+def remove_forward():
+    """
+    Removes all port forwards from adb
+    """
+    return _adb_command("forward --remove-all")
 
 def devices():
     """
@@ -507,7 +594,6 @@ def track_variable(name, line_used, smali_file):
 
     return []
 
-
 def string(string_variable, resources_strings_xml_file):
     """
     Looks for a string variable in the resources files
@@ -577,12 +663,13 @@ class Manifest(object):
     """ This class represents an Android manifest file """
 
     BROWSABLE_CATEGORY = "android.intent.category.BROWSABLE"
+    _filename = None
 
     def __init__(self, manifest_file_path):
         """
         Create a representation of the Android Manifest object
 
-        :param str manigest_file_path: the path to the manifest file to parse
+        :param str manifest_file_path: the path to the manifest file to parse
         """
         import xml.etree.ElementTree as ET
 
@@ -596,10 +683,15 @@ class Manifest(object):
             "").replace("android:", "")
 
         self._root = ET.fromstring(manifest_content)
+        self._filename = manifest_file_path
 
     def __str__(self):
         """Returns a string representation of the manifest"""
         return "Android Manifest ({})".format(self.package())
+
+    def file_path(self):
+        """Returns a string with the file path to the Manifest file"""
+        return self._filename
 
     def version(self):
         """
