@@ -4,7 +4,9 @@ from scrounger.core.module import BaseModule
 from scrounger.utils.general import pretty_grep
 from scrounger.utils.android import smali_dirs
 from scrounger.utils.android import extract_smali_method
-from scrounger.utils.config import Log
+from scrounger.utils.config import Log, _CERT_PATH
+from scrounger.lib.proxy2 import create_server
+
 
 import re
 
