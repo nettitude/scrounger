@@ -25,11 +25,8 @@ class GDB(object):
         from scrounger.lib.tcprelay import create_server
 
         self._device = device
-        host, port = "localhost", 52222
+        host, port = device._ssh_session._ip, device._ssh_session._port
         key = "{}/bin/ios/scrounger.key".format(_SCROUNGER_HOME)
-
-        # start a new tcprelay
-        self._relay = create_server("localhost", "22", 52222)
 
         _log.debug("Starting a new SSH connection to the remote device")
         self._process = InteractiveProcess("ssh -i {} -p {} root@{}".format(

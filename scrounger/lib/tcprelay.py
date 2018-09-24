@@ -98,6 +98,9 @@ class TCPRelay(SocketServer.BaseRequestHandler):
 class TCPServer(SocketServer.TCPServer):
     allow_reuse_address = True
 
+class ThreadedTCPServer(SocketServer.ThreadingMixIn, TCPServer):
+    pass
+
 class ServerSession(threading.Thread):
     """ Represents 1 port forwarding thread server """
 
@@ -127,7 +130,8 @@ def create_server(host="localhost", remote_port=22, local_port=2222):
     :return ServerSession: the thread with the forwarding server
     """
 
-    server = TCPServer((host, int(local_port)), TCPRelay)
+    # ThreadedTCPServer for multiple connections
+    server = ThreadedTCPServer((host, int(local_port)), TCPRelay)
     server.rport = int(remote_port)
     server.bufsize = 128
 
