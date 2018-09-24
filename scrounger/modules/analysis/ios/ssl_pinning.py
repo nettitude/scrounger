@@ -1,8 +1,11 @@
 from scrounger.core.module import BaseModule
 
 # helper functions
-from scrounger.utils.config import Log
+from scrounger.utils.config import Log, _CERT_PATH
 from scrounger.utils.general import strings, pretty_grep
+from scrounger.lib.proxy2 import create_server
+
+from time import sleep
 import re
 
 class Module(BaseModule):
@@ -24,6 +27,37 @@ class Module(BaseModule):
             "description": "local path to the application's decrypted binary",
             "required": True,
             "default": None
+        },
+        {
+            "name": "identifier",
+            "description": "the application's identifier",
+            "required": False,
+            "default": None
+        },
+        {
+            "name": "device",
+            "description": "the remote device",
+            "required": False,
+            "default": None
+        },
+        {
+            "name": "proxy_host",
+            "description": "the hostname to have a proxy listening on",
+            "required": False,
+            "default": ""
+        },
+        {
+            "name": "proxy_port",
+            "description": "the port to have a proxy listening on",
+            "required": False,
+            "default": 9090
+        },
+        {
+            "name": "wait_time",
+            "description": "set how long (seconds) to wait before starting the \
+proxy - this time is used to allow setup of proxy on the remote device.",
+            "required": False,
+            "default": 20
         }
     ]
 
@@ -58,6 +92,44 @@ validatesDomainName|SSLPinningMode"
                 "details": "{}\nThe following was found in the class dump:\n\
 {}".format(result["details"], pretty_grep_to_str(evidence, self.class_dump))
             })
+
+        if self.device and self.identifier and \
+        self.proxy_host != None and self.proxy_port != None:
+            Log.info("Testing SSL Pinning using a proxy")
+            Log.info("Make sure your device trusts the CA in: {}/ca.crt".format(
+                _CERT_PATH))
+            Log.info("Waiting for {} seconds to allow time to setup the \
+proxy on the remote device".format(self.wait_time))
+            sleep(int(self.wait_time))
+
+            Log.info("Killing the application")
+            self.device.stop(self.identifier)
+
+            Log.info("Starting the SSL proxy")
+            proxy_server = create_server(self.proxy_host, self.proxy_port,
+                _CERT_PATH)
+
+            Log.info("Starting the Application")
+            self.device.start(self.identifier)
+
+            Log.info("Waiting for the Application to start and make requests")
+            sleep(10)
+
+            pinned = list(set(proxy_server.server.connected) -
+                set(proxy_server.server.requested))
+
+            if not proxy_server.server.connected:
+                Log.error("No connections made by the application")
+
+            if pinned:
+                result.update({
+                    "report": True,
+                    "details": "{}\n\nThe application started a connection but \
+made no requests to the following domains:\n* {}".format(result["details"],
+                        "\n* ".join(pinned))
+                    })
+
+            proxy_server.stop()
 
         return {
             "{}_result".format(self.name()): result

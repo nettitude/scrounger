@@ -253,6 +253,7 @@ class USBMux(object):
         connector = MuxConnection(self.socketpath, self.protoclass)
         return connector.connect(device, port)
 
+"""
 if __name__ == "__main__":
     mux = USBMux()
     print "Waiting for devices..."
@@ -263,3 +264,4 @@ if __name__ == "__main__":
         for dev in mux.devices:
             print dev
         mux.process()
+"""

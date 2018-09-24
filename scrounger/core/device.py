@@ -522,6 +522,17 @@ class IOSDevice(BaseDevice):
 
         return None
 
+    def stop(self, app_id):
+        """
+        Kills an application on the connected device
+
+        :param str app_id: the application identifier
+        :return: nothing
+        """
+        pid = self.pid(app_id)
+        if pid:
+            self.execute("kill -9 {}".format(pid))
+
     def start(self, app_id):
         """
         Starts an application on the connected device
@@ -835,6 +846,15 @@ class AndroidDevice(BaseDevice):
                 return int(process["pid"])
 
         return None
+
+    def stop(self, package):
+        """
+        Kills an application on the connected device
+
+        :param str app_id: the application identifier
+        :return: nothing
+        """
+        self.root_execute("am force-stop {}".format(package))
 
     def apps(self):
         """
