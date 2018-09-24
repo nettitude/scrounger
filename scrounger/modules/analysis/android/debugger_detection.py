@@ -5,6 +5,8 @@ from scrounger.utils.config import Log
 from scrounger.utils.general import pretty_grep, pretty_grep_to_str
 from scrounger.utils.android import JDB, forward, remove_forward, smali_dirs
 
+from scrounger.modules.misc.android.app.make_debuggable import Module as DModule
+
 from time import sleep
 import re
 
@@ -33,6 +35,13 @@ class Module(BaseModule):
             "description": "the remote device",
             "required": True,
             "default": None
+        },
+        {
+            "name": "repackage",
+            "description": "if set to true recompiles the application with \
+debuggable set to true (likely to fail)",
+            "required": True,
+            "default": False
         },
         {
             "name": "ignore",
@@ -79,7 +88,16 @@ smali code.",
                 "report": True
             })
 
-        # TODO: Make the applications debuggable ?
+        if self.repackage:
+            Log.info("Trying to modify the application to be debuggable")
+
+            # make the application debuggable
+            debug_module = DModule()
+            debug_module.decompiled_apk = self.decompiled_apk
+            debug_module.device = self.device
+            debug_module.output = None # will default to /tmp
+            debug_module.install = True
+            debug_module.run()
 
         Log.info("Starting the application and identifying the process ID")
         self.device.start(self.identifier)
