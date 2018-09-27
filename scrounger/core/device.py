@@ -473,7 +473,7 @@ class IOSDevice(BaseDevice):
 
         :return: a list of dicts of processes
         """
-        @_requires_android_binary(self, "ps")
+        @_requires_ios_binary(self, "ps")
         def _processes():
             from scrounger.utils.general import remove_multiple_spaces
 
@@ -497,6 +497,26 @@ class IOSDevice(BaseDevice):
             return processes_list
 
         return _processes()
+
+    def repositories(self):
+        """
+        Returns a list of repositories added to APT / Cydia
+
+        :return: a list with the repositories URLS
+        """
+
+        @_requires_ios_binary(self, "apt")
+        def _repositories():
+            repositories_list = []
+            for line in self.execute(
+                "grep -R deb /etc/apt/sources.list.d/")[0].split("\n"):
+                if line:
+                    line_split = line.strip().split(":",1)[-1].split(" ")
+                    repositories_list += [line_split[1]]
+
+            return repositories_list
+
+        return _repositories()
 
     # **************************************************************************
     # Applications functions
@@ -543,9 +563,10 @@ class IOSDevice(BaseDevice):
 
         # com.conradkramer.open
         # iOS 11 - https://github.com/GaryniL/Open/releases
-        @_requires_ios_binary(self, "open")
+        # https://github.com/insidegui/launchapp/ bundled in listapps
+        @_requires_ios_binary(self, "listapps")
         def _start(app_id):
-            return self.execute("open {}".format(app_id))
+            return self.execute("listapps -o {}".format(app_id))
 
         return _start(app_id)
 

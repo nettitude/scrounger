@@ -22,21 +22,29 @@ class Module(BaseModule):
             "description": "list of bianries to install - seperated by ;",
             "required": True,
             "default": "clutch;dump_backup_flag;dump_file_protection;\
-dump_keychain;dump_log;listapps;open"
+dump_keychain;dump_log;listapps"
+        },
+        {
+            "name": "repositories",
+            "description": "the repositories needed to install the packages",
+            "required": True,
+            "default": "https://cydia.angelxwind.net;\
+https://shmoo419.github.io/"
         },
         {
             "name": "packages",
             "description": "list of packages to install - seperated by ;",
             "required": True,
-            "default": "gdb"
+            "default": "gdb71050;com.shmoo.uncrypt11;com.linusyang.appinst\
+net.angelxwind.appsyncunified"
         }
     ]
 
     def run(self):
         Log.info("Installing binaries")
         binaries_to_install = self.binaries.split(";")
-        packages_to_install = [
-            "{}.deb".format(package) for package in self.packages.split(";")]
+        packages_to_install = self.packages.split(";")
+        repositories_to_install = self.repositories.split(";")
         binaries_local_path = "{}/bin/ios".format(_SCROUNGER_HOME)
 
         for binary in binaries_to_install:
@@ -46,10 +54,22 @@ dump_keychain;dump_log;listapps;open"
             if not installed:
                 Log.error("Could not install {}".format(binary))
 
+        scrounger_apt_list = "/etc/apt/sources.list.d/scrounger.list"
+        repositories_list = " ".join(self.device.repositories())
+
+        Log.info("Adding repositories")
+        for repository in repositories_to_install:
+            if repository not in repositories_list:
+                Log.info("Adding {} repository".format(repository))
+                if not repository.endswith("/"):
+                    repository = "{}/".format(repository)
+                self.device.execute("echo deb {} ./ >> {}".format(
+                    repository, scrounger_apt_list))
+                self.device.execute("apt update")
+
         for package in packages_to_install:
-            self.device.put("{}/{}".format(binaries_local_path, package),
-                "/tmp/{}".format(package))
-            self.device.execute("dpkg -i /tmp/{}".format(package))
+            Log.info("Trying to install {}".format(package))
+            self.device.execute("apt install {}".format(package))
 
         return {
             "print": "Binaries installed."
