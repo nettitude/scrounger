@@ -41,7 +41,7 @@ application on the device",
             # setup filenames
             remote_binary = "{}/{}".format(
                 installed_apps[self.identifier]["application"],
-                installed_apps[self.identifier]["display_name"])
+                installed_apps[self.identifier]["binary_name"])
 
             Log.info("Getting application's symbols")
             symbols = self.device.otool("-Iv", remote_binary)[0] # stdout

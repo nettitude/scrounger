@@ -21,7 +21,7 @@ class Module(BaseModule):
             "name": "binaries",
             "description": "list of bianries to install - seperated by ;",
             "required": True,
-            "default": "clutch;dump_backup_flag;dump_file_protection;\
+            "default": "dump_backup_flag;dump_file_protection;\
 dump_keychain;dump_log;listapps"
         },
         {
@@ -29,14 +29,14 @@ dump_keychain;dump_log;listapps"
             "description": "the repositories needed to install the packages",
             "required": True,
             "default": "https://cydia.angelxwind.net;\
-https://shmoo419.github.io/"
+https://shmoo419.github.io/;http://cydia.ichitaso.com/"
         },
         {
             "name": "packages",
             "description": "list of packages to install - seperated by ;",
             "required": True,
             "default": "gdb71050;com.shmoo.uncrypt11;com.linusyang.appinst\
-net.angelxwind.appsyncunified"
+net.angelxwind.appsyncunified;com.kjcracks.clutch2;zip"
         }
     ]
 
@@ -67,9 +67,10 @@ net.angelxwind.appsyncunified"
                     repository, scrounger_apt_list))
                 self.device.execute("apt update")
 
-        for package in packages_to_install:
-            Log.info("Trying to install {}".format(package))
-            self.device.execute("apt install {}".format(package))
+        packages = " ".join(packages_to_install)
+        Log.info("Trying to install {}".format(packages))
+        self.device.execute(
+            "apt -y --allow-unauthenticated install {}".format(packages))
 
         return {
             "print": "Binaries installed."

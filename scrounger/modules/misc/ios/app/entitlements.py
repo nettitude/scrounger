@@ -40,7 +40,7 @@ class Module(BaseModule):
             # setup filenames
             remote_binary = "{}/{}".format(
                 installed_apps[self.identifier]["application"],
-                installed_apps[self.identifier]["display_name"])
+                installed_apps[self.identifier]["binary_name"])
 
             Log.info("Getting entitlements")
             entitlements = self.device.ldid("-e", remote_binary)[0] # stdout

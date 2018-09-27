@@ -240,6 +240,15 @@ class IOSDevice(BaseDevice):
         return plist_to_dict(cleaned_file_content)
         """
 
+    def file_exists(self, file):
+        """
+        Returns True if a file exists or False if not
+
+        :return Bool: True if it exists or False if not
+        """
+        stdout, stderr = self.execute("ls {}".format(file))
+        return not stderr or "No such file or directory" not in stderr
+
     def system_version(self):
         """
         Retrieves the iOS version installed on the device
@@ -247,7 +256,7 @@ class IOSDevice(BaseDevice):
         :return: returns a string with the iOS version
         """
         @_requires_ios_binary(self, "grep")
-        def _system_version(self):
+        def _system_version():
             os_version_file = "/System/Library/CoreServices/SystemVersion.plist"
             version = self.execute("grep -A 1 ProductVersion {}".format(
                 os_version_file))[0] # stdout
@@ -255,7 +264,7 @@ class IOSDevice(BaseDevice):
             import re
             return re.search(r"[\d.]+", version).group()
 
-        return self._system_version()
+        return _system_version()
 
     def apps(self):
         """
@@ -276,7 +285,7 @@ class IOSDevice(BaseDevice):
                 appid = app["identifier"]
                 apps[appid] = app
                 apps[appid]["application"] = apps[appid]["install_path"]
-                apps[appid]["display_name"] = apps[appid]["binary_name"]
+                apps[appid]["binary_name"] = apps[appid]["binary_name"]
                 apps[appid]["data"] = apps[appid]["data_path"]
 
             return apps
@@ -422,7 +431,6 @@ class IOSDevice(BaseDevice):
 
         return _keychain_data()
 
-
     def install(self, ipa_file_path):
         """
         Installs an IPA app on the remote device
@@ -534,10 +542,11 @@ class IOSDevice(BaseDevice):
             _Log.debug("App {} is not installed on the device".format(app_id))
             return None
 
-        install_path = apps[app_id]["display_name"]
+        install_path = apps[app_id]["application"]
         processes = self.processes()
         for process in processes:
-            if install_path.lower() in process["name"].lower():
+            if install_path.rsplit("/", 1)[-1].lower() in \
+            process["name"].lower():
                 return int(process["pid"])
 
         return None
@@ -660,6 +669,84 @@ class IOSDevice(BaseDevice):
 
         return None
 
+
+    def _uncrypt_app_helper(self, app_id, decrypt_type):
+        """
+        Decrypts an app using uncrypt11 and returns the result output
+
+        :param str app_id: the id of the app to be decrypted
+        :param str decrypt_type: the type of decryption to be done - either
+        binary only (-b) or packed into ipa (-d)
+        :return: returns the output of the decryption
+        """
+        from time import sleep
+
+        uncrypt_path = "/Library/MobileSubstrate/DynamicLibraries/\
+uncrypt11.dylib"
+
+        if not self.file_exists(uncrypt_path):
+            _Log.debug("Uncrypt11 not found")
+            return "FAIL: Uncrypt11 not installed."
+
+        self.start(app_id) # start app - needs to be running
+        sleep(5) # wait to start
+        pid = self.pid(app_id) # get pid
+
+        if not pid:
+            _Log.debug("PID not found")
+            return "FAIL: Could not get PID of {}".format(app_id)
+
+        result = self.execute("/electra/inject_criticald {} {}".format(
+            pid, uncrypt_path))
+
+        if "No error occured!" not in result[0] and \
+        "No error occured!" not in result[1]:
+            _Log.debug("Not decrypted:\n{}\n{}".format(result[0], results[1]))
+            return "FAIL: An error occured trying to decrypt {}".format(app_id)
+
+        list_apps = self.apps()
+        app_info = list_apps[app_id]
+        decrypted_binary = "{}/Documents/{}\ decrypted".format(
+            app_info["data"], app_info["binary_name"])
+
+        if not self.file_exists(decrypted_binary):
+            _Log.debug("File {} does not exist".format(decrypted_binary))
+            return "FAIL: Could not decrypt {}".format(app_id)
+
+        # move binary to tmp
+        end_path = "/tmp/{}.decrypted".format(app_id)
+        self.execute("mv {} {}".format(decrypted_binary, end_path))
+
+        if decrypt_type == "-b":
+            _Log.debug("Dumpped binary")
+            return "Finished dumping {} to {}\n".format(app_id, end_path)
+
+        _Log.debug("Creating IPA")
+
+        # create IPA scructure
+        self.execute("rm -rf /tmp/scrounger-tmp/Payload")
+        self.execute("mkdir -p /tmp/scrounger-tmp/Payload")
+
+        # copy App to /tmp
+        self.execute("cp -r {} /tmp/scrounger-tmp/Payload".format(
+            app_info["application"]))
+
+        # move decrypted binary to the Payload
+        app_name = app_info["application"].rsplit("/", 1)[-1]
+        self.execute("mv {} /tmp/scrounger-tmp/Payload/{}/{}".format(
+            end_path, app_name, app_info["binary_name"]))
+
+        # zip everything
+        self.execute("cd /tmp/scrounger-tmp; zip -r ../{}.ipa Payload/".format(
+            app_id))
+
+        # cleanup
+        self.execute("rm -rf /tmp/scrounger-tmp")
+
+        # Success: DONE: /path/to/ipa\n
+        # Success: Finished dumping app_id to /path/to/dump/binary\n
+        return "DONE: /tmp/{}.ipa\n".format(app_id)
+
     def _decrypt_app_helper(self, app_id, decrypt_type):
         """
         Decrypts an app and returns the result output
@@ -670,7 +757,7 @@ class IOSDevice(BaseDevice):
         :return: returns the output of the decryption
         """
         @_requires_ios_binary(self, "clutch")
-        def __decrypt_app_helper(app_id, decrypt_type):
+        def _clutch_decrypt_app_helper(app_id, decrypt_type):
             from socket import timeout
             scrounger_clutch_log_file = "/tmp/scrounger-clutch.log"
 
@@ -687,7 +774,12 @@ class IOSDevice(BaseDevice):
 
             return output
 
-        return __decrypt_app_helper(app_id, decrypt_type)
+        ios_version = self.system_version()
+        if ios_version.startswith("11."):
+            return self._uncrypt_app_helper(app_id, decrypt_type)
+
+        # ios < 11 use clutch
+        return _clutch_decrypt_app_helper(app_id, decrypt_type)
 
 
 from scrounger.utils.android import _adb_command

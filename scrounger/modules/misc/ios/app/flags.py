@@ -34,7 +34,7 @@ class Module(BaseModule):
             # setup filenames
             remote_binary = "{}/{}".format(
                 installed_apps[self.identifier]["application"],
-                installed_apps[self.identifier]["display_name"])
+                installed_apps[self.identifier]["binary_name"])
 
             Log.info("Getting binary flags")
             flags = self.device.otool("-hv", remote_binary)[0] # stdout
