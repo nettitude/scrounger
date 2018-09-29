@@ -1,6 +1,7 @@
 from scrounger.core.module import BaseModule
 
 # helper functions
+from scrounger.utils.ios import otool_symbols, jtool_symbols
 from scrounger.utils.config import Log
 
 class Module(BaseModule):
@@ -13,14 +14,8 @@ application on the device",
 
     options = [
         {
-            "name": "identifier",
-            "description": "the application's identifier",
-            "required": True,
-            "default": None
-        },
-        {
-            "name": "device",
-            "description": "the remote device",
+            "name": "binary",
+            "description": "local path to the application's decrypted binary",
             "required": True,
             "default": None
         },
@@ -33,34 +28,32 @@ application on the device",
     ]
 
     def run(self):
-        result = {"print": "Application not installed."}
+        identifier = self.binary.rsplit("/", 1)[-1]
 
-        Log.info("Checking if the application is installed")
-        installed_apps = self.device.apps()
-        if self.identifier in installed_apps:
-            # setup filenames
-            remote_binary = "{}/{}".format(
-                installed_apps[self.identifier]["application"],
-                installed_apps[self.identifier]["binary_name"])
+        result = {}
 
-            Log.info("Getting application's symbols")
-            symbols = self.device.otool("-Iv", remote_binary)[0] # stdout
+        Log.info("Getting application's symbols")
+        try:
+            symbols = otool_symbols(self.binary)
+        except Exception as e:
+            result.update({"exceptions": [e]})
+            Log.info("Trying jtool")
+            symbols = jtool_symbols(self.binary)
 
-            result = {
-                "{}_symbols".format(self.identifier): symbols
-            }
+        result.update({
+            "{}_symbols".format(identifier): symbols
+        })
 
-            if hasattr(self, "output") and self.output:
-                Log.info("SAving symbols to file")
+        if hasattr(self, "output") and self.output:
+            Log.info("Saving symbols to file")
+            filename = "{}/{}.symbols".format(self.output, identifier)
+            with open(filename, "w") as fp:
+                fp.write(symbols)
 
-                filename = "{}/{}.symbols".format(self.output, self.identifier)
-                with open(filename, "w") as fp:
-                    fp.write(symbols)
-
-                result.update({
-                    "print": "Symbols saved in {}.".format(filename),
-                    "{}_symbols_file".format(self.identifier): filename
-                })
+            result.update({
+                "print": "Symbols saved in {}.".format(filename),
+                "{}_symbols_file".format(identifier): filename
+            })
 
         return result
 

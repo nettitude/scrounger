@@ -607,36 +607,6 @@ class IOSDevice(BaseDevice):
 
         return _pull_data_contents(data_path, local_path)
 
-    def otool(self, options, app_binary_path):
-        """
-        Executes otool on the device
-
-        :param str options: the options to pass to otool with `-` attached
-        :param str app_binary_path: the binary to run otool on
-        :return: otool result stdout and stderr
-        """
-        @_requires_ios_binary(self, "otool")
-        def _otool(options, app_binary_path):
-            app_binary_path = app_binary_path.replace(" " , "\ ")
-            return self.execute("otool {} {}".format(options, app_binary_path))
-
-        return _otool(options, app_binary_path)
-
-    def ldid(self, options, app_binary_path):
-        """
-        Executes ldid on the device
-
-        :param str options: the options to pass to ldid with `-` attached
-        :param str app_binary_path: the binary to run ldid on
-        :return: otool ldid stdout and stderr
-        """
-        @_requires_ios_binary(self, "ldid")
-        def _ldid(options, app_binary_path):
-            app_binary_path = app_binary_path.replace(" " , "\ ")
-            return self.execute("ldid {} {}".format(options, app_binary_path))
-
-        return _ldid(options, app_binary_path)
-
     def decrypt_binary(self, app_id):
         """
         Decrypt the binary of the application only

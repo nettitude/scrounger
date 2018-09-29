@@ -12,7 +12,7 @@ class GDB(object):
     An object representing a gdb on the remote device
     """
 
-    _relay = _process = _device = _last_read = None
+    _process = _device = _last_read = None
     _running = False
 
     def __init__(self, device):
@@ -81,9 +81,6 @@ class GDB(object):
         if self._running:
             self.execute("quit\ny\n") # exit GDB
         self._process.kill()
-
-        # stop tcprelay
-        self._relay.stop()
 
 def devices():
     """

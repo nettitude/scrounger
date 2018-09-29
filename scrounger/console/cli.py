@@ -177,8 +177,8 @@ def _run_full_android(app_path, full_analysis_module, options):
 
 def _run_full_ios(app_path, full_analysis_module, options):
     from scrounger.modules.misc.ios import unzip_ipa
-    from scrounger.modules.misc.ios.local import class_dump
-    from scrounger.modules.misc.ios.local.app import info
+    from scrounger.modules.misc.ios import class_dump
+    from scrounger.modules.misc.ios.app import info_local as info
     from scrounger.utils.ios import application_path
 
     Log.info("Installing App")

@@ -1,7 +1,7 @@
 from scrounger.core.module import BaseModule
 
 # helper functions
-from scrounger.modules.misc.ios.local.app.entitlements import Module as EModule
+from scrounger.modules.misc.ios.app.entitlements import Module as EModule
 from scrounger.utils.ios import plist
 from scrounger.utils.config import Log
 

@@ -1,7 +1,7 @@
 from scrounger.core.module import BaseModule
 
 # helper functions
-from scrounger.modules.misc.ios.local.app.info import Module as InfoModule
+from scrounger.modules.misc.ios.app.info_local import Module as InfoModule
 from scrounger.utils.config import Log
 from scrounger.utils.general import execute
 from scrounger.utils.ios import unzip, application_path

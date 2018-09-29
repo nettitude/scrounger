@@ -1,25 +1,21 @@
 from scrounger.core.module import BaseModule
 
 # helper functions
+from scrounger.utils.ios import entitlements, plist_dict_to_xml
 from scrounger.utils.config import Log
 
 class Module(BaseModule):
     meta = {
         "author": "RDC",
-        "description": "Gets the application's entitlements",
+        "description": "Gets the application's entitlements from a local \
+binary and saves them to file",
         "certainty": 100
     }
 
     options = [
         {
-            "name": "identifier",
-            "description": "the application's identifier",
-            "required": True,
-            "default": None
-        },
-        {
-            "name": "device",
-            "description": "the remote device",
+            "name": "binary",
+            "description": "local path to the application's binary",
             "required": True,
             "default": None
         },
@@ -32,36 +28,25 @@ class Module(BaseModule):
     ]
 
     def run(self):
-        result = {"print": "Application not installed."}
+        identifier = self.binary.rsplit("/", 1)[-1]
 
-        Log.info("Checking if the application is installed")
-        installed_apps = self.device.apps()
-        if self.identifier in installed_apps:
-            # setup filenames
-            remote_binary = "{}/{}".format(
-                installed_apps[self.identifier]["application"],
-                installed_apps[self.identifier]["binary_name"])
+        Log.info("Getting entitlements")
+        ents = entitlements(self.binary)
 
-            Log.info("Getting entitlements")
-            entitlements = self.device.ldid("-e", remote_binary)[0] # stdout
+        result = {
+            "{}_entitlements".format(identifier): ents
+        }
 
-            result = {
-                "{}_entitlements".format(self.identifier): entitlements
-            }
+        if hasattr(self, "output") and self.output:
+            Log.info("Saving entitlements to file")
+            filename = "{}/{}.entitlements".format(self.output, identifier)
+            with open(filename, "w") as fp:
+                fp.write(plist_dict_to_xml(ents))
 
-            if hasattr(self, "output") and self.output:
-                Log.info("Saving entitlements to file")
-
-                filename = "{}/{}.entitlements".format(self.output,
-                    self.identifier)
-
-                with open(filename, "w") as fp:
-                    fp.write(entitlements)
-
-                result.update({
-                    "print": "Entitlements saved in {}.".format(filename),
-                    "{}_entitlements_file".format(self.identifier): filename
-                })
+            result.update({
+                "print": "Entitlements saved in {}.".format(filename),
+                "{}_entitlements_file".format(identifier): filename
+            })
 
         return result
 
