@@ -45,7 +45,7 @@ _BANNER = """
                                      __/ |
                                     |___/
 """
-_VERSION = "0.1.8"
+_VERSION = "0.2.0"
 _HOME = getenv('HOME')
 _SCROUNGER_HOME_NAME = ".scrounger"
 _SCROUNGER_HOME = "{}/{}".format(_HOME, _SCROUNGER_HOME_NAME)

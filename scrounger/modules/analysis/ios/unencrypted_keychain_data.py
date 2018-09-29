@@ -17,6 +17,12 @@ the keychain",
 
     options = [
         {
+            "name": "binary",
+            "description": "local path to the application's decrypted binary",
+            "required": True,
+            "default": None
+        },
+        {
             "name": "identifier",
             "description": "the application's identifier",
             "required": True,
@@ -47,16 +53,14 @@ the keychain",
         Log.info("Getting keychain's IDs")
 
         ent_module = EModule()
-        ent_module.identifier = self.identifier
-        ent_module.device = self.device
+        ent_module.binary = self.binary
         ent_result, entitlements = ent_module.run(), None
         for key in ent_result:
             if key.endswith("_entitlements"):
                 entitlements = ent_result[key]
 
         if not entitlements:
-            return {"print": "Couldn't get entitlements from device."}
-
+            return {"print": "Couldn't get entitlements from the bianry."}
 
         keychain_id = self.identifier
         if "keychain-access-groups" in entitlements:

@@ -1,8 +1,8 @@
 from scrounger.core.module import BaseModule
 
 # helper modules
+from scrounger.utils.ios import otool_archs, jtool_archs
 from scrounger.utils.config import Log
-import re
 
 class Module(BaseModule):
     meta = {
@@ -13,38 +13,27 @@ class Module(BaseModule):
 
     options = [
         {
-            "name": "identifier",
-            "description": "the application's identifier",
+            "name": "binary",
+            "description": "local path to the application's binary",
             "required": True,
             "default": None
         },
-        {
-            "name": "device",
-            "description": "the remote device",
-            "required": True,
-            "default": None
-        }
     ]
 
     def run(self):
-        result = {"print": "Application not installed."}
+        identifier = self.binary.rsplit("/", 1)[-1]
 
-        Log.info("Checking if the application is installed")
-        installed_apps = self.device.apps()
-        if self.identifier in installed_apps:
-            # setup filenames
-            remote_binary = "{}/{}".format(
-                installed_apps[self.identifier]["application"],
-                installed_apps[self.identifier]["binary_name"])
+        Log.info("Getting archs")
+        try:
+            archs = otool_archs(self.binary)
+        except Exception as e:
+            result.update({"exceptions": [e]})
+            Log.info("Trying jtool")
+            archs = jtool_archs(self.binary)
 
-            Log.info("Getting architectures")
-            flags = self.device.otool("-hv", remote_binary)[0] # stdout
-            archs = map(lambda arch: "arm{}".format(arch),
-                re.findall(r"arm[ ]+(v6|v7|v7s|64) ", flags.lower()))
-
-            result = {
-                "{}_archs".format(self.identifier): archs
-            }
+        result = {
+            "{}_archs".format(identifier): archs
+        }
 
         return result
 

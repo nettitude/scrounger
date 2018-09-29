@@ -2,7 +2,8 @@ from scrounger.core.module import BaseModule
 
 # helper functions
 from scrounger.utils.config import Log
-from scrounger.utils.ios import otool_class_dump_to_dict
+from scrounger.utils.ios import otool_class_dump_to_dict, otool_class_dump
+from scrounger.utils.ios import jtool_class_dump_to_dict, jtool_class_dump
 from scrounger.utils.ios import save_class_dump
 from scrounger.utils.general import execute
 
@@ -21,12 +22,6 @@ class Module(BaseModule):
             "default": None
         },
         {
-            "name": "device",
-            "description": "the remote device",
-            "required": True,
-            "default": None
-        },
-        {
             "name": "output",
             "description": "local output directory",
             "required": False,
@@ -36,8 +31,14 @@ class Module(BaseModule):
 
     def run(self):
         Log.info("Dumping classes with otool")
-        class_dump = otool_class_dump_to_dict(
-            self.device.otool("-ov", self.binary)[0]) # stdout
+        try:
+            class_dump = otool_class_dump_to_dict(otool_class_dump(self.binary))
+        except Exception as e:
+            Log.error("An error ocurred when trying to use otool")
+            Log.debug(e)
+            Log.info("Trying jtool")
+            class_dump = jtool_class_dump_to_dict(jtool_class_dump(self.binary))
+
 
         dump_name = self.binary.rsplit("/", 1)[-1].replace(" ", ".")
         result = {
@@ -50,7 +51,6 @@ class Module(BaseModule):
 
             # create output folder
             execute("mkdir -p {}".format(dump_path))
-
             save_class_dump(class_dump, dump_path)
 
             result.update({
