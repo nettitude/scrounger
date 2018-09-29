@@ -48,7 +48,7 @@ class Module(BaseModule):
         Log.info("Analysing application's smali code")
         for directory in dirs:
             smali = "{}/{}".format(self.decompiled_apk, directory)
-            bridges = pretty_grep(self.js_interface_regex, smali)
+            bridges.update(pretty_grep(self.js_interface_regex, smali))
 
         report = {}
         # check var setting
@@ -59,6 +59,7 @@ class Module(BaseModule):
                 report[file_name] += method_name(
                     instance["line"], file_name)
 
+        bridges = {} # TODO: check this works
         for file_name in report:
             bridges[file_name] += report[file_name]
 

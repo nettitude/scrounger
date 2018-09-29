@@ -33,7 +33,11 @@ The main features **Scrounger** offers that others don't:
 
 As a disclaimer, all identified findings by **Scrounger** should always be manually double checked.
 
-**When using modules that need an Android or iOS device, Scrounger needs a Rooted or Jailbroken device respectively**
+When using modules that need an Android or iOS device, Scrounger needs a **Rooted** or **Jailbroken** device respectively.
+
+Scrounger has been tested to work on **iOS 11** and **Android 8.1**.
+
+Scrounger has been built for **python 2.7** only.
 
 ## Install
 
@@ -85,7 +89,6 @@ python setup.py install --upgrade
 
 ### iOS Binaries
 * Bundled Binaries:
-    * clutch
     * dump_backup_flag
     * dump_file_protection
     * dump_keychain
@@ -94,9 +97,11 @@ python setup.py install --upgrade
 * Cydia Karen's Repository (https://cydia.angelxwind.net) (Optional):
     * AppSync Unified (Package: net.angelxwind.appsyncunified)
     * appinst (Package: com.linusyang.appinst)
-* Other (Optional):
-    * ldid
-    * otool
+* Cydia Shmoo419's Repository (https://shmoo419.github.io/) (Optional):
+    * uncrypt11 (Package: com.shmoo.uncrypt11)
+    * gdb (Package: gdb71050)
+* Cydia Ichitaso's Repository (http://cydia.ichitaso.com/) (Optional):
+    * clutch (Package: com.kjcracks.clutch2)
 
 ## Install Scripts
 
@@ -635,6 +640,5 @@ Excuting Module 0
 
 ## TODO
 
-* Add sessions to the console (allow to save and import sessions)
 * Add init file that is run everytime scrounger-console is started
-* Android providers with "@string" not being translated (?)
+* Fix session results saving when not strings

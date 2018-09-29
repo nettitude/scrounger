@@ -96,7 +96,7 @@ function install(){
 
     elif [[ "$2" == 'Darwin' ]]; then
         # checks if brew exists
-        command -v brew || die "Could not find `brew` to install dependencies"
+        command -v brew || die "Could not find 'brew' to install dependencies"
         brew update
 
         # iproxy, ldid

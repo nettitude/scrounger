@@ -30,13 +30,8 @@ class Module(BaseModule):
         Log.info("Checking if the application is installed")
         installed_apps = self.device.apps()
         if self.identifier in installed_apps:
-            # setup filenames
-            remote_binary = "{}/{}".format(
-                installed_apps[self.identifier]["application"],
-                installed_apps[self.identifier]["display_name"])
-
             Log.info("Starting the application")
-            self.device.start(remote_binary)
+            self.device.start(self.identifier)
 
             return {
                 "print": "Application {} started.".format(self.identifier)

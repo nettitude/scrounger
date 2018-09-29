@@ -2,8 +2,79 @@
 Module with android utility functions.
 """
 
-from scrounger.utils.general import requires_binary
+from scrounger.utils.general import requires_binary, InteractiveProcess
 from scrounger.utils.general import execute as _execute
+from scrounger.utils.config import Log as _log
+
+class JDB(object):
+    """
+    An object representing a jdb on the remote device
+    """
+
+    _process = _host = _port = None
+    _last_read = _last_error = None
+    _running = False
+
+    def __init__(self, host, port):
+        """
+        Creates a new JDB object representiong a JDB instance on the remote
+        device
+
+        :param str host: the host to connect JDB to
+        :param int port: the port where JDB app is listening
+        """
+        from time import sleep
+
+        self._host, self._port = host, port
+
+        _log.debug("Starting a new jdb process")
+        self._process = InteractiveProcess("jdb -attach {}:{}".format(
+            host, port))
+
+        sleep(5) # wait for it to start
+
+        self._last_read = self._process.read()
+        self._last_error = self._process.error()
+
+        self._running = not self._last_error or (self._last_error and \
+            "unable to attach" not in self._last_error.lower())
+
+    def running(self):
+        """Returns True if the application is running or False if it is not"""
+        return self._running
+
+    def execute(self, jdb_command):
+        """
+        Executes a command in the remote jdb
+
+        :param str jdb_command: the jdb command to execute
+        :return: the result of the command as a str
+        """
+        if not self._running:
+            return "JDB not running."
+
+        self._process.write(jdb_command)
+        self._last_read = self._process.read()
+        return self._last_read
+
+    def read(self):
+        """
+        Returns new content from the jdb if any or the last read content
+
+        :return: new content from jdb stdout or last read content
+        """
+        new_content = self._process.read()
+        if new_content:
+            self._last_read = new_content
+        return self._last_read
+
+    def exit(self):
+        """
+        Exits JDB and kills the process
+        """
+        if self._running:
+            self.execute("quit") # exit JDB
+        self._process.kill()
 
 @requires_binary("adb")
 def _adb_command(command):
@@ -14,6 +85,22 @@ def _adb_command(command):
     :return: stdout and stderr from the executed command
     """
     return _execute("adb {}".format(command)).replace("\r\n", "\n")
+
+
+def forward(local_port, pid):
+    """
+    Forwards a local port to the PID of the app for JDB to connect
+
+    :param int local_port: the local port that will forward to the remote APP
+    :param int pid: the PID of the app to be debugged
+    """
+    return _adb_command("forward tcp:{} jdwp:{}".format(local_port, pid))
+
+def remove_forward():
+    """
+    Removes all port forwards from adb
+    """
+    return _adb_command("forward --remove-all")
 
 def devices():
     """
@@ -134,6 +221,9 @@ def extract_providers(decompiled_app_path):
     from scrounger.utils.general import pretty_grep
     import re
 
+    # strings xml file
+    strings_xml = "{}/res/values/strings.xml".format(decompiled_app_path)
+
     providers_regex = r"content://[a-zA-Z0-1.-@/]+"
     providers = []
 
@@ -150,12 +240,223 @@ def extract_providers(decompiled_app_path):
             if provider_path.endswith("/"):
                 provider_path = provider_path[:-1]
 
-            # TODO: translate @string to value
+            # Translate @string
+            if "@string" in provider_path:
+                string_variable = "@string{}".format(
+                    provider_path.split("@string", 1)[-1])
+                provider_path = string(string_variable, strings_xml)
             providers.append(provider_path)
 
     # creates a set to make sure there are no duplicates and returns a sorted
     # list
     return sorted(set(providers))
+
+def method_names(decompiled_app_path, ignored, identifier=None):
+    """
+    Looks for method names from the smali code
+
+    :param str decompiled_app_path: the directory with the decompiled app
+    :param list ignored: a list of paths to be ignored
+    :param str identifier: if set it tries to identify only class names in the
+    path equivalent to the identifier
+    :return: list with method names
+    """
+    from scrounger.utils.general import pretty_grep
+
+    # prepare identifier paths
+    identifier_paths = []
+    if identifier:
+        identifier_path = identifier.replace(".", "/")
+        while identifier_path.count("/") > 1:
+            identifier_paths += [identifier_path]
+            identifier_path = identifier_path.rsplit("/", 1)[0]
+
+    # grep method names from smali code
+    method_regex = r"\.method.*\(.*\)"
+    grep_result = pretty_grep(method_regex, decompiled_app_path)
+
+    methods = [] # we want repeated method names
+    for filename in grep_result:
+
+        # check if path not to be ignored and filder identifier paths
+        if not any([ignored_path in filename for ignored_path in ignored]) and \
+        ((
+            identifier and \
+            any([id_path in filename for id_path in identifier_paths])
+        ) or not identifier):
+
+            for finding in grep_result[filename]:
+
+                # get method name
+                name = finding["details"].split("(", 1)[0].rsplit(" ", 1)[-1]
+                methods += [name]
+
+    # return sorted methods but not unique
+    return sorted(methods)
+
+def class_names(decompiled_app_path, ignored, identifier=None):
+    """
+    Looks for class names from the smali code
+
+    :param str decompiled_app_path: the directory with the decompiled app
+    :param list ignored: a list of paths to be ignored
+    :param str identifier: if set it tries to identify only class names in the
+    path equivalent to the identifier
+    :return: list with class names
+    """
+    from scrounger.utils.general import pretty_grep
+
+    # prepare identifier paths
+    identifier_paths = []
+    if identifier:
+        identifier_path = identifier.replace(".", "/")
+        while identifier_path.count("/") > 1:
+            identifier_paths += [identifier_path]
+            identifier_path = identifier_path.rsplit("/", 1)[0]
+
+    # grep class names from smali code
+    class_regex = r"\.class.*L.*"
+    grep_result = pretty_grep(class_regex, decompiled_app_path)
+
+    classes = [] # we want repeated class names
+    for filename in grep_result:
+
+        # check if path not to be ignored and filder identifier paths
+        if not any([ignored_path in filename for ignored_path in ignored]) and \
+        ((
+            identifier and \
+            any([id_path in filename for id_path in identifier_paths])
+        ) or not identifier):
+
+            for finding in grep_result[filename]:
+
+                # get class name
+                name = finding["details"].rsplit("/", 1)[-1].rsplit(";", 1)[0]
+                classes += [name]
+
+    # return sorted classes but not unique
+    return sorted(classes)
+
+def app_strings(decompiled_app_path, ignored, identifier=None):
+    """
+    Looks for strings in the smali code and xml files
+
+    :param str decompiled_app_path: the directory with the decompiled app
+    :param list ignored: a list of paths to be ignored
+    :param str identifier: if set it tries to identify only class names in the
+    path equivalent to the identifier
+    :return: list with strings
+    """
+    from scrounger.utils.general import pretty_grep
+
+    # prepare identifier paths
+    identifier_paths = []
+    if identifier:
+        identifier_path = identifier.replace(".", "/")
+        while identifier_path.count("/") > 1:
+            identifier_paths += [identifier_path]
+            identifier_path = identifier_path.rsplit("/", 1)[0]
+
+    # grep class names from smali code
+    string_regex = r"\".*?\""
+
+    lsmali_dirs = smali_dirs(decompiled_app_path)
+    full_smali_path = []
+    for ldir in lsmali_dirs:
+        full_smali_path += ["{}/{}".format(decompiled_app_path, ldir)]
+    grep_result = pretty_grep(string_regex, " ".join(full_smali_path))
+
+    strings = [] # we want repeated string names
+    for filename in grep_result:
+
+        # check if path not to be ignored and filder identifier paths
+        if not any([ignored_path in filename for ignored_path in ignored]) and \
+        ((
+            identifier and \
+            any([id_path in filename for id_path in identifier_paths])
+        ) or not identifier):
+
+            for finding in grep_result[filename]:
+
+                # get string name
+                name = finding["details"].split("\"")[1]
+                strings += [name]
+
+    return sorted(strings)
+
+def app_used_resources(decompiled_app_path, ignored, identifier=None):
+    """
+    Returns the strings that correspond to the used resources
+
+    :param str decompiled_app_path: the directory with the decompiled app
+    :param list ignored: a list of paths to be ignored
+    :param str identifier: if set it tries to identify only class names in the
+    path equivalent to the identifier
+    :return: list with strings
+    """
+    from scrounger.utils.general import pretty_grep
+
+    # prepare identifier paths
+    identifier_paths = []
+    if identifier:
+        identifier_path = identifier.replace(".", "/")
+        while identifier_path.count("/") > 1:
+            identifier_paths += [identifier_path]
+            identifier_path = identifier_path.rsplit("/", 1)[0]
+
+    lsmali_dirs = smali_dirs(decompiled_app_path)
+    full_smali_path = []
+    for ldir in lsmali_dirs:
+        full_smali_path += ["{}/{}".format(decompiled_app_path, ldir)]
+
+    # find 0xXXXXX and look for it in xml files
+    xml_references_regex = r"const .*0x[a-z0-9]{8}"
+    grep_result = pretty_grep(xml_references_regex, " ".join(full_smali_path))
+
+    strings = [] # we want repeated string names
+    for filename in grep_result:
+
+        # check if path not to be ignored and filder identifier paths
+        if not any([ignored_path in filename for ignored_path in ignored]) and \
+        ((
+            identifier and \
+            any([id_path in filename for id_path in identifier_paths])
+        ) or not identifier):
+
+            for finding in grep_result[filename]:
+                resource_id = finding["details"].strip().rsplit(" ", 1)[-1]
+                resource = public_resource(decompiled_app_path, resource_id)
+                if resource_id != resource:
+                    strings += [resource]
+
+    # return sorted classes but not unique
+    return sorted(strings)
+
+def public_resource(decompiled_app_path, resource_id):
+    """
+    Looks for strings reference for the resource
+
+    :param str decompiled_app_path: the directory with the decompiled app
+    :param str resource_id: the resource to look for
+    :return: a str witht he resource or the str with the resource id
+    """
+    from scrounger.utils.general import pretty_grep
+
+    # public xml file
+    public_xml = "{}/res/values/public.xml".format(decompiled_app_path)
+
+    grep_result = pretty_grep(resource_id, public_xml)
+
+    # if variable was not found
+    if len(grep_result) == 0:
+        return resource_id
+
+    # get the string from grep result
+    string = grep_result.popitem()[1][0]["details"]
+
+    # get the string between tags
+    # <public type="string" name="action_update" id="0x7f0c0015" />
+    return string.split("name=\"", 1)[-1].split("\" ", 1)[0]
 
 def smali_dirs(decompiled_apk_path):
     """
@@ -293,7 +594,6 @@ def track_variable(name, line_used, smali_file):
 
     return []
 
-
 def string(string_variable, resources_strings_xml_file):
     """
     Looks for a string variable in the resources files
@@ -342,7 +642,7 @@ def parsed_providers(decompiled_app_path):
     manifest_providers = manifest.providers()
     for provider in manifest_providers:
         provider_string = string(provider["authority"], strings_xml)
-        if string(provider["name"]).startswith("."):
+        if string(provider["name"], strings_xml).startswith("."):
             provider_string = "{}{}".format(provider_string,
                 string(provider['name'], strings_xml))
 
@@ -363,12 +663,13 @@ class Manifest(object):
     """ This class represents an Android manifest file """
 
     BROWSABLE_CATEGORY = "android.intent.category.BROWSABLE"
+    _filename = None
 
     def __init__(self, manifest_file_path):
         """
         Create a representation of the Android Manifest object
 
-        :param str manigest_file_path: the path to the manifest file to parse
+        :param str manifest_file_path: the path to the manifest file to parse
         """
         import xml.etree.ElementTree as ET
 
@@ -382,10 +683,15 @@ class Manifest(object):
             "").replace("android:", "")
 
         self._root = ET.fromstring(manifest_content)
+        self._filename = manifest_file_path
 
     def __str__(self):
         """Returns a string representation of the manifest"""
         return "Android Manifest ({})".format(self.package())
+
+    def file_path(self):
+        """Returns a string with the file path to the Manifest file"""
+        return self._filename
 
     def version(self):
         """

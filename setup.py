@@ -3,7 +3,7 @@
 from setuptools.command.install import install
 from setuptools.command.develop import develop
 from setuptools import setup, find_packages
-from scrounger.utils.config import _VERSION, _SCROUNGER_HOME
+from scrounger.utils.config import _VERSION, _SCROUNGER_HOME, _CERT_PATH
 
 def _create_custom_modules_paths():
     from scrounger.utils.general import execute
@@ -39,6 +39,16 @@ def _create_custom_modules_paths():
     binaries = execute("find {} -type f".format(android_binaries_path))
     for binary in binaries.split("\n"):
         execute("cp {} {}".format(binary, installed_path))
+
+    # change scrounger's private key perms
+    execute("chmod 600 {}/bin/ios/scrounger.key".format(_SCROUNGER_HOME))
+
+    # generate keys for SSL proxy
+    execute("mkdir -p {}/certs".format(_CERT_PATH))
+    execute("openssl genrsa -out {}/ca.key 2048".format(_CERT_PATH))
+    execute("openssl req -new -x509 -days 3650 -key {}/ca.key \
+-out {}/ca.crt -subj \"/CN=proxy2 CA\"".format(_CERT_PATH, _CERT_PATH))
+    execute("openssl genrsa -out {}/cert.key 2048".format(_CERT_PATH))
 
 class _pre_install(install):
     def run(self):

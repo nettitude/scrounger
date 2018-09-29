@@ -27,7 +27,9 @@ class SSHClient(object):
         self._timeout = timeout
 
     def connect(self):
-        """ Connected to the report server. """
+        """
+        Connect to the report server.
+        """
         self._session = _paramiko.SSHClient()
         self._session.load_system_host_keys()
         self._session.set_missing_host_key_policy(
@@ -91,3 +93,44 @@ class SSHClient(object):
         """
         return self._session != None
 
+    def add_key(self, key_path):
+        """
+        Adds a public ssh key to the device's ~/.ssh/authorized_keys
+
+        :param str key_path: the local path to the public ssh key to add
+        :return: True if succeeded or False if not
+        """
+        from os.path import isfile
+
+        if not isfile(key_path):
+            return False
+
+        # read public key contents
+        with open(key_path, "r") as fd:
+            public_key = fd.read()
+
+        # check if authorized_keys exists
+        stdout, stderr = self.execute("ls ~/.ssh/authorized_keys")
+        if stderr and "no such file" in stderr.lower():
+            # try to create .ssh
+            self.execute("mkdir -p ~/.ssh")
+            # create empty authorized_keys
+            self.execute("echo > ~/.ssh/authorized_keys")
+
+            # check it again and if it does not exist then return FAIL
+            stdout, stderr = self.execute("ls ~/.ssh/authorized_keys")
+            if "no such file" in stderr.lower():
+                return False
+
+        # file exists then read it's contents
+        authorized_keys, stderr = self.execute("cat ~/.ssh/authorized_keys")
+
+        # append the public key to the authorized_keys file
+        if authorized_keys and public_key not in authorized_keys:
+            self.execute(
+                "echo \"{}\" >> ~/.ssh/authorized_keys".format(public_key))
+
+        # read authorized_keys content again
+        authorized_keys, stderr = self.execute("cat ~/.ssh/authorized_keys")
+
+        return authorized_keys and public_key in authorized_keys

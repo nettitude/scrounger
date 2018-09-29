@@ -43,7 +43,7 @@ class Module(BaseModule):
             remote_filename = "{}/{}.bin".format(self._remote, self.identifier)
 
             # decrypt binary and move the binary
-            Log.info("Decryptuing the binary")
+            Log.info("Decrypting the binary")
             decrypted_bin_path = self.device.decrypt_binary(self.identifier)
             self.device.execute("mv {} {}".format(decrypted_bin_path,
                 remote_filename))

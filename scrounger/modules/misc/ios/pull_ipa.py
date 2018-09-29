@@ -42,6 +42,10 @@ class Module(BaseModule):
             Log.info("Decrypting application")
             remote_ipa_file = self.device.decrypt(self.identifier)
 
+            if not remote_ipa_file:
+                return {"print": "Could not decrypt the application: {}".format(
+                    remote_ipa_file)}
+
             Log.info("Pulling application's IPA")
             # get the application and delete the remote one
             self.device.get(remote_ipa_file, filename)

@@ -87,8 +87,8 @@ SSL_RSA_WITH_RC4_128_MD5|SSL_RSA_WITH_RC4_128_SHA"
         Log.info("Analysing application's smali code")
         for directory in dirs:
             smali = "{}/{}".format(self.decompiled_apk, directory)
-            ssl_socket_files = pretty_grep(self.file_regex, smali)
-            ciphers += pretty_grep(self.regex, smali)
+            #ssl_socket_files = pretty_grep(self.file_regex, smali)
+            ciphers.update(pretty_grep(self.regex, smali))
 
         if ciphers:
             result.update({

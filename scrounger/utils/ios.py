@@ -2,8 +2,88 @@
 Module with ios utility functions.
 """
 
-from scrounger.utils.general import requires_binary
+from scrounger.utils.general import requires_binary, InteractiveProcess
+from scrounger.utils.general import requires_ios_binary as _requires_ios_binary
 from scrounger.utils.general import execute as _execute
+from scrounger.utils.config import Log as _log, _SCROUNGER_HOME
+
+class GDB(object):
+    """
+    An object representing a gdb on the remote device
+    """
+
+    _relay = _process = _device = _last_read = None
+    _running = False
+
+    def __init__(self, device):
+        """
+        Creates a new GDB object representiong a GDB instance on the remote
+        device
+
+        :param IOSDevice device: A device representing the remote device
+        """
+        from scrounger.lib.tcprelay import create_server
+
+        self._device = device
+        host, port = device._ssh_session._ip, device._ssh_session._port
+        key = "{}/bin/ios/scrounger.key".format(_SCROUNGER_HOME)
+
+        _log.debug("Starting a new SSH connection to the remote device")
+        self._process = InteractiveProcess("ssh -i {} -p {} root@{}".format(
+            key, port, host))
+
+        _log.debug("Starting GDB on the remote device")
+        self._running = self._start_gdb()
+
+    def _start_gdb(self):
+        from time import sleep # wait for gdb to start
+
+        @_requires_ios_binary(self._device, "gdb")
+        def __start_gdb(self):
+            self._process.write("gdb\n") #added \n for initial prompt
+            result, attempt = self._process.read(), 0
+            while not result and attempt < 3:
+                sleep(2)
+                result, attempt = self._process.read(), attempt + 1
+            return result and "GNU gdb" in result
+
+        return __start_gdb(self)
+
+    def execute(self, gdb_command):
+        """
+        Executes a command in the remote gdb
+
+        :param str gdb_command: the gdb command to execute
+        :return: the result of the command as a str
+        """
+        if not self._running:
+            return "GDB not running."
+
+        self._process.write(gdb_command)
+        self._last_read = self._process.read()
+        return self._last_read
+
+    def read(self):
+        """
+        Returns new content from the gdb if any or the last read content
+
+        :return: new content from gdb stdout or last read content
+        """
+        new_content = self._process.read()
+        if new_content:
+            self._last_read = new_content
+        return self._last_read
+
+    def exit(self):
+        """
+        Exits GDB and kills the ssh session
+        """
+        if self._running:
+            self.execute("quit\ny\n") # exit GDB
+        self._process.kill()
+
+        # stop tcprelay
+        self._relay.stop()
 
 def devices():
     """
@@ -301,7 +381,7 @@ def save_class_dump(class_dump, local_file_path):
 
     // base_methods
 
-    // instance_ methods
+    // instance_methods
 
     // protocols
     """

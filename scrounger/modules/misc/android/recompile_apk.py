@@ -40,7 +40,7 @@ class Module(BaseModule):
 
         recompiled_apk = "{}/{}-recompiled.apk".format(self.output, identifier)
 
-        # unzip
+        # recompile
         Log.info("Re-compiling application")
         output = recompile(self.decompiled_apk, recompiled_apk)
 

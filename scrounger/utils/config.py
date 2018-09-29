@@ -23,6 +23,14 @@ Log.addHandler(_handler)
 Log.setLevel(_logging.INFO)
 #Log.setLevel(_logging.DEBUG)
 
+# Binary found memory
+binary_memory = {
+    "binary": [],
+    "ios": {},
+    "ios_packages": {},
+    "android": {},
+}
+
 # Constants
 SSH_SESSION_TIMEOUT = 60*5 # 5 minutes
 SSH_COMMAND_TIMEOUT = 30 # 30 seconds
@@ -37,8 +45,12 @@ _BANNER = """
                                      __/ |
                                     |___/
 """
-_VERSION = "0.1.7"
+_VERSION = "0.1.8"
+_HOME = getenv('HOME')
 _SCROUNGER_HOME_NAME = ".scrounger"
-_SCROUNGER_HOME = "{}/{}".format(getenv('HOME'), _SCROUNGER_HOME_NAME)
+_SCROUNGER_HOME = "{}/{}".format(_HOME, _SCROUNGER_HOME_NAME)
 _HISTORY_FILE = "{}/history".format(_SCROUNGER_HOME)
+_SESSION_FILE = "{}/sessions".format(_SCROUNGER_HOME)
 _MAX_HISTORY = 1000
+
+_CERT_PATH = "{}/certificates".format(_SCROUNGER_HOME)

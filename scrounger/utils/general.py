@@ -1,4 +1,5 @@
 from scrounger.utils.config import Log as _Log
+from scrounger.utils.config import binary_memory as _memory
 
 """
 Module with utility functions.
@@ -173,6 +174,97 @@ def pretty_grep_to_str(grep_result, haystack, ignore=None):
 
     return final_str
 
+# ******************************************************************************
+# Interactive Process
+# ******************************************************************************
+
+class InteractiveProcess(object):
+    """
+    Class representing an object that interacts with a binary multiple times
+    """
+    _process = _command = _executable = None
+
+    def __init__(self, command):
+        """
+        Creates an interactive process to interact with out of a command
+
+        :param str command: the command to be executed
+        """
+
+        from fcntl import fcntl, F_GETFL, F_SETFL
+        from subprocess import Popen, PIPE
+        import os
+
+        self._command = command
+        self._executable = command.split(" ", 1)[0]
+
+        _Log.debug("Starting the interactive process: {}".format(command))
+
+        self._process = Popen(command, shell=True, stdout=PIPE, stdin=PIPE,
+            stderr=PIPE)
+        fcntl(self._process.stdin, F_SETFL,
+            fcntl(self._process.stdin, F_GETFL) | os.O_NONBLOCK)
+        fcntl(self._process.stdout, F_SETFL,
+            fcntl(self._process.stdout, F_GETFL) | os.O_NONBLOCK)
+        fcntl(self._process.stderr, F_SETFL,
+            fcntl(self._process.stderr, F_GETFL) | os.O_NONBLOCK)
+
+    def write(self, command):
+        """
+        Writes a command into the interactive process
+
+        :param str command: the command to be sent to the interactive process
+        :return: nothing
+        """
+        import os
+
+        _Log.debug("Sending to process {}: {}".format(
+            self._executable, command))
+
+        # add a new line and send the command to the process stdin
+        os.write(self._process.stdin.fileno(), "{}\n".format(command))
+
+    def read(self):
+        """
+        Reads from the process stdout
+
+        :return: a str with the stdout result or None
+        """
+        import os
+
+        try:
+            return self._process.stdout.read()
+        except:
+            _Log.debug("Nothing to read from {}".format(self._executable))
+            # there is nothing to read, return None
+            return None
+
+    def error(self):
+        """
+        Reads from the process stderr
+
+        :return: a str with the stderr result or None
+        """
+        import os
+
+        try:
+            return self._process.stderr.read()
+        except:
+            _Log.debug("Nothing to read stderr {}".format(self._executable))
+            # there is nothing to read, return None
+            return None
+
+    def kill(self):
+        """
+        Stops the process - avoid hanging process
+        """
+        # try to communicate first and then kill
+        try:
+            self._process.communicate("")
+            self._process.kill()
+        except:
+            # couldn't kill
+            pass
 
 # ******************************************************************************
 # Requires Decorator
@@ -206,7 +298,7 @@ class IOSBinaryNotFoundException(BinaryNotFoundException):
 
     BUNDLED_IOS_BINARIES = [
         "clutch", "dump_file_protection", "dump_backup_flag", "dump_keychain",
-        "dump_log",
+        "dump_log", "listapps", "gdb"
     ]
 
 class AndroidBinaryNotFoundException(BinaryNotFoundException):
@@ -246,12 +338,20 @@ class requires_binary(object):
         self._binary = binary
 
     def __call__(self, func):
-
         def wrapper(obj=None, *args, **kwargs):
-            binary = execute("which {}".format(self._binary))
-            if not binary or 'not found' in binary:
-                raise BinaryNotFoundException("{} binary not found.".format(
-                    self._binary), self._binary)
+
+            # check if we checked and found the binary before
+            if self._binary not in _memory["binary"]:
+
+                # check if binary exists
+                binary = execute("command -v {}".format(self._binary))
+                if not binary or 'not found' in binary:
+                    raise BinaryNotFoundException("{} binary not found.".format(
+                        self._binary), self._binary)
+
+                # binary found - add it to the list
+                _memory["binary"] += [self._binary]
+
             return func() if not obj else func(obj, *args, **kwargs)
 
         return wrapper
@@ -273,10 +373,25 @@ class requires_ios_binary(object):
 
     def __call__(self, func):
         def wrapper(obj=None, *args, **kwargs):
-            binary = self._device.execute("which {}".format(self._binary))[0]
-            if not binary or 'not found' in binary:
-                raise IOSBinaryNotFoundException(
-                    "{} binary not found.".format(self._binary), self._binary)
+
+            # get device id
+            device_id = self._device.device_id()
+            if device_id not in _memory["ios"]:
+                _memory["ios"][device_id] = []
+
+            # check if we checked and found the binary before
+            if self._binary not in _memory["ios"][device_id]:
+
+                binary = self._device.execute(
+                    "command -v {}".format(self._binary))[0]
+                if not binary or 'not found' in binary:
+                    raise IOSBinaryNotFoundException(
+                        "{} binary not found.".format(self._binary),
+                        self._binary)
+
+                # binary found - add it to the list
+                _memory["ios"][device_id] += [self._binary]
+
             return func() if not obj else func(obj, *args, **kwargs)
 
         return wrapper
@@ -298,11 +413,23 @@ class requires_ios_package(object):
 
     def __call__(self, func):
         def wrapper(obj=None, *args, **kwargs):
-            packages = self._device.execute("dpkg -l")[0]
 
-            if self._package not in packages:
-                raise Exception(
-                    "{} not installed.".format(self._package), self._package)
+            # get device id
+            device_id = self._device.device_id()
+            if device_id not in _memory["ios_packages"]:
+                _memory["ios_packages"][device_id] = []
+
+            # check if we checked and found the binary before
+            if self._package not in _memory["ios_packages"][device_id]:
+
+                packages = self._device.execute("dpkg -l")[0]
+                if self._package not in packages:
+                    raise Exception("{} not installed.".format(self._package),
+                        self._package)
+
+            # binary found - add it to the list
+            _memory["ios_packages"][device_id] += [self._package]
+
             return func() if not obj else func(obj, *args, **kwargs)
 
         return wrapper
@@ -324,10 +451,24 @@ class requires_android_binary(object):
 
     def __call__(self, func):
         def wrapper(obj=None, *args, **kwargs):
-            binary = self._device.execute("which {}".format(self._binary))
-            if not binary or 'not found' in binary:
-                raise AndroidBinaryNotFoundException(
-                    "{} binary not found.".format(self._binary), self._binary)
+
+            # get device id
+            device_id = self._device.device_id()
+            if device_id not in _memory["android"]:
+                _memory["android"][device_id] = []
+
+            # check if we checked and found the binary before
+            if self._binary not in _memory["android"][device_id]:
+                binary = self._device.execute(
+                    "command -v {}".format(self._binary))
+                if not binary or 'not found' in binary:
+                    raise AndroidBinaryNotFoundException(
+                        "{} binary not found.".format(self._binary),
+                        self._binary)
+
+            # binary found - add it to the list
+            _memory["android"][device_id] += [self._binary]
+
             return func() if not obj else func(obj, *args, **kwargs)
 
         return wrapper

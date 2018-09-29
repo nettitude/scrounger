@@ -8,7 +8,7 @@ from time import sleep
 class Module(BaseModule):
     meta = {
         "author": "RDC",
-        "description": "Looks into the chared preference files and tries to \
+        "description": "Looks into the shared preference files and tries to \
 check if the contents are encrypted",
         "certainty": 70
     }

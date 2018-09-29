@@ -26,7 +26,7 @@ class IOSDevice(BaseDevice):
     This class will be used as a bridge between the host and the ios device
     """
 
-    _ssh_session = _iproxy_process = _timer = None
+    _ssh_session = _relay_process = _timer = None
 
     # **************************************************************************
     # Object helper functions
@@ -53,28 +53,31 @@ class IOSDevice(BaseDevice):
         """ Returns the device ID """
         return self._device_id
 
-    @_requires_binary("iproxy")
     def _start_connection(self):
         """
         Starts an SSH connection to the remote device
         """
         from scrounger.utils.ssh import SSHClient
-        from scrounger.utils.general import process
         from scrounger.utils.config import SSH_COMMAND_TIMEOUT
         from scrounger.utils.config import SSH_SESSION_TIMEOUT
+        from scrounger.utils.config import _SCROUNGER_HOME
+        from scrounger.lib.tcprelay import create_server
 
         # setup
         if not self._ssh_session:
-            # this was breaking
-            #self._iproxy_process = process(
-            #    'iproxy 2222 22 {}'.format(self._device_id))
-            self._iproxy_process = process("iproxy 2222 22")
+
+            self._relay_process = create_server()
             self._ssh_session = SSHClient("127.0.0.1", 2222,
                 self._username, self._password, SSH_COMMAND_TIMEOUT)
             self._ssh_session.connect()
 
             # Log a new sessions
             _Log.debug("new ssh session started.")
+
+        # add scrounger's key
+        key_path = "{}/bin/ios/scrounger.pub".format(_SCROUNGER_HOME)
+        if not self._ssh_session.add_key(key_path):
+            _Log.debug("Scrounger's ssh key not in authorized_keys")
 
         # start a tiemout for the connection
         from threading import Timer
@@ -97,9 +100,8 @@ class IOSDevice(BaseDevice):
 
         if self._ssh_session:
             self._ssh_session.disconnect()
-            #self._iproxy_process.kill()
-            self._iproxy_process = self._ssh_session = None
-            execute('killall iproxy') # make sure iproxy is killed
+            self._relay_process.stop()
+            self._relay_process = self._ssh_session = None
 
             # Log session stop
             _Log.debug("ssh session killed.")
@@ -238,6 +240,15 @@ class IOSDevice(BaseDevice):
         return plist_to_dict(cleaned_file_content)
         """
 
+    def file_exists(self, file):
+        """
+        Returns True if a file exists or False if not
+
+        :return Bool: True if it exists or False if not
+        """
+        stdout, stderr = self.execute("ls {}".format(file))
+        return not stderr or "No such file or directory" not in stderr
+
     def system_version(self):
         """
         Retrieves the iOS version installed on the device
@@ -245,7 +256,7 @@ class IOSDevice(BaseDevice):
         :return: returns a string with the iOS version
         """
         @_requires_ios_binary(self, "grep")
-        def _system_version(self):
+        def _system_version():
             os_version_file = "/System/Library/CoreServices/SystemVersion.plist"
             version = self.execute("grep -A 1 ProductVersion {}".format(
                 os_version_file))[0] # stdout
@@ -253,7 +264,7 @@ class IOSDevice(BaseDevice):
             import re
             return re.search(r"[\d.]+", version).group()
 
-        return self._system_version()
+        return _system_version()
 
     def apps(self):
         """
@@ -266,14 +277,15 @@ class IOSDevice(BaseDevice):
             from json import loads
 
             apps = {}
-            listed_apps = self.execute("listapps -j -d")[0].replace("\n", "").replace("'", "\"")
+            listed_apps = self.execute(
+                "listapps -j -d")[0].replace("\n", "").replace("'", "\"")
 
             listed_apps = loads(listed_apps)
             for app in listed_apps["apps"]:
                 appid = app["identifier"]
                 apps[appid] = app
                 apps[appid]["application"] = apps[appid]["install_path"]
-                apps[appid]["display_name"] = apps[appid]["binary_name"]
+                apps[appid]["binary_name"] = apps[appid]["binary_name"]
                 apps[appid]["data"] = apps[appid]["data_path"]
 
             return apps
@@ -419,7 +431,6 @@ class IOSDevice(BaseDevice):
 
         return _keychain_data()
 
-
     def install(self, ipa_file_path):
         """
         Installs an IPA app on the remote device
@@ -463,22 +474,110 @@ class IOSDevice(BaseDevice):
 
         return _find_files(paths)
 
+
+    def processes(self):
+        """
+        Returns a list of running processes, their users and pids
+
+        :return: a list of dicts of processes
+        """
+        @_requires_ios_binary(self, "ps")
+        def _processes():
+            from scrounger.utils.general import remove_multiple_spaces
+
+            processes_list = []
+            for process in self.execute("ps aux")[0].split("\n"):
+                if not process: continue
+                process = remove_multiple_spaces(process.strip())
+                fields = process.split(" ")
+                app_user = fields[0]
+                app_pid  = fields[1]
+
+                # if the app has spaces in the name
+                app_name = " ".join(fields[10:])
+
+                processes_list += [{
+                    "name": app_name,
+                    "user": app_user,
+                    "pid": app_pid
+                }]
+
+            return processes_list
+
+        return _processes()
+
+    def repositories(self):
+        """
+        Returns a list of repositories added to APT / Cydia
+
+        :return: a list with the repositories URLS
+        """
+
+        @_requires_ios_binary(self, "apt")
+        def _repositories():
+            repositories_list = []
+            for line in self.execute(
+                "grep -R deb /etc/apt/sources.list.d/")[0].split("\n"):
+                if line:
+                    line_split = line.strip().split(":",1)[-1].split(" ")
+                    repositories_list += [line_split[1]]
+
+            return repositories_list
+
+        return _repositories()
+
     # **************************************************************************
     # Applications functions
     # **************************************************************************
 
-    def start(self, binary_path):
+    def pid(self, app_id):
+        """
+        Returns the PID of a running application
+
+        :param str app_id: the identifier of the app to get the PID from
+        :return int: a PID if the app with app_id is running or None if not
+        """
+        apps = self.apps()
+        if app_id not in apps:
+            _Log.debug("App {} is not installed on the device".format(app_id))
+            return None
+
+        install_path = apps[app_id]["application"]
+        processes = self.processes()
+        for process in processes:
+            if install_path.rsplit("/", 1)[-1].lower() in \
+            process["name"].lower():
+                return int(process["pid"])
+
+        return None
+
+    def stop(self, app_id):
+        """
+        Kills an application on the connected device
+
+        :param str app_id: the application identifier
+        :return: nothing
+        """
+        pid = self.pid(app_id)
+        if pid:
+            self.execute("kill -9 {}".format(pid))
+
+    def start(self, app_id):
         """
         Starts an application on the connected device
 
-        :param str binary_path: the application to start
+        :param str app_id: the application identifier
         :return: the result of opening the app
         """
-        @_requires_ios_binary(self, "open")
-        def _start(binary_path):
-            return self.execute("open {}".format(binary_path))
 
-        return _start(binary_path)
+        # com.conradkramer.open
+        # iOS 11 - https://github.com/GaryniL/Open/releases
+        # https://github.com/insidegui/launchapp/ bundled in listapps
+        @_requires_ios_binary(self, "listapps")
+        def _start(app_id):
+            return self.execute("listapps -o {}".format(app_id))
+
+        return _start(app_id)
 
     def pull_data_contents(self, data_path, local_path):
         """
@@ -570,6 +669,84 @@ class IOSDevice(BaseDevice):
 
         return None
 
+
+    def _uncrypt_app_helper(self, app_id, decrypt_type):
+        """
+        Decrypts an app using uncrypt11 and returns the result output
+
+        :param str app_id: the id of the app to be decrypted
+        :param str decrypt_type: the type of decryption to be done - either
+        binary only (-b) or packed into ipa (-d)
+        :return: returns the output of the decryption
+        """
+        from time import sleep
+
+        uncrypt_path = "/Library/MobileSubstrate/DynamicLibraries/\
+uncrypt11.dylib"
+
+        if not self.file_exists(uncrypt_path):
+            _Log.debug("Uncrypt11 not found")
+            return "FAIL: Uncrypt11 not installed."
+
+        self.start(app_id) # start app - needs to be running
+        sleep(5) # wait to start
+        pid = self.pid(app_id) # get pid
+
+        if not pid:
+            _Log.debug("PID not found")
+            return "FAIL: Could not get PID of {}".format(app_id)
+
+        result = self.execute("/electra/inject_criticald {} {}".format(
+            pid, uncrypt_path))
+
+        if "No error occured!" not in result[0] and \
+        "No error occured!" not in result[1]:
+            _Log.debug("Not decrypted:\n{}\n{}".format(result[0], results[1]))
+            return "FAIL: An error occured trying to decrypt {}".format(app_id)
+
+        list_apps = self.apps()
+        app_info = list_apps[app_id]
+        decrypted_binary = "{}/Documents/{}\ decrypted".format(
+            app_info["data"], app_info["binary_name"])
+
+        if not self.file_exists(decrypted_binary):
+            _Log.debug("File {} does not exist".format(decrypted_binary))
+            return "FAIL: Could not decrypt {}".format(app_id)
+
+        # move binary to tmp
+        end_path = "/tmp/{}.decrypted".format(app_id)
+        self.execute("mv {} {}".format(decrypted_binary, end_path))
+
+        if decrypt_type == "-b":
+            _Log.debug("Dumpped binary")
+            return "Finished dumping {} to {}\n".format(app_id, end_path)
+
+        _Log.debug("Creating IPA")
+
+        # create IPA scructure
+        self.execute("rm -rf /tmp/scrounger-tmp/Payload")
+        self.execute("mkdir -p /tmp/scrounger-tmp/Payload")
+
+        # copy App to /tmp
+        self.execute("cp -r {} /tmp/scrounger-tmp/Payload".format(
+            app_info["application"]))
+
+        # move decrypted binary to the Payload
+        app_name = app_info["application"].rsplit("/", 1)[-1]
+        self.execute("mv {} /tmp/scrounger-tmp/Payload/{}/{}".format(
+            end_path, app_name, app_info["binary_name"]))
+
+        # zip everything
+        self.execute("cd /tmp/scrounger-tmp; zip -r ../{}.ipa Payload/".format(
+            app_id))
+
+        # cleanup
+        self.execute("rm -rf /tmp/scrounger-tmp")
+
+        # Success: DONE: /path/to/ipa\n
+        # Success: Finished dumping app_id to /path/to/dump/binary\n
+        return "DONE: /tmp/{}.ipa\n".format(app_id)
+
     def _decrypt_app_helper(self, app_id, decrypt_type):
         """
         Decrypts an app and returns the result output
@@ -580,7 +757,7 @@ class IOSDevice(BaseDevice):
         :return: returns the output of the decryption
         """
         @_requires_ios_binary(self, "clutch")
-        def __decrypt_app_helper(app_id, decrypt_type):
+        def _clutch_decrypt_app_helper(app_id, decrypt_type):
             from socket import timeout
             scrounger_clutch_log_file = "/tmp/scrounger-clutch.log"
 
@@ -597,7 +774,12 @@ class IOSDevice(BaseDevice):
 
             return output
 
-        return __decrypt_app_helper(app_id, decrypt_type)
+        ios_version = self.system_version()
+        if ios_version.startswith("11."):
+            return self._uncrypt_app_helper(app_id, decrypt_type)
+
+        # ios < 11 use clutch
+        return _clutch_decrypt_app_helper(app_id, decrypt_type)
 
 
 from scrounger.utils.android import _adb_command
@@ -758,6 +940,34 @@ class AndroidDevice(BaseDevice):
             return packages
 
         return _packages()
+
+    def pid(self, package):
+        """
+        Returns the PID of a running application
+
+        :param str package: the identifier of the app to get the PID from
+        :return int: a PID if the app with package is running or None if not
+        """
+        apps = self.packages()
+        if package not in apps:
+            _Log.debug("App {} is not installed on the device".format(package))
+            return None
+
+        processes = self.processes()
+        for process in processes:
+            if package.lower() in process["name"].lower():
+                return int(process["pid"])
+
+        return None
+
+    def stop(self, package):
+        """
+        Kills an application on the connected device
+
+        :param str app_id: the application identifier
+        :return: nothing
+        """
+        self.root_execute("am force-stop {}".format(package))
 
     def apps(self):
         """

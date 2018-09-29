@@ -35,7 +35,7 @@ class Module(BaseModule):
             class_dump = otool_class_dump_to_dict(otool_class_dump(self.binary))
         except Exception as e:
             Log.error("An error ocurred when trying to use otool")
-            Log.error(e)
+            Log.debug(e)
             Log.info("Trying jtool")
             class_dump = jtool_class_dump_to_dict(jtool_class_dump(self.binary))
 
