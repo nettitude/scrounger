@@ -231,9 +231,13 @@ def extract_providers(decompiled_app_path):
 
     for filename in grep_result:
         for finding in grep_result[filename]:
+
             # needs regex search since grep returns the whole line
-            provider_path = re.search(providers_regex,
-                finding["details"]).group().split("://", 1)[-1].strip()
+            provider_path = re.search(providers_regex, finding["details"])
+            if not provider_path:
+                continue
+
+            provider_path = provider_path.group().split("://", 1)[-1].strip()
 
             # make sure that every provider follows a standard and has no /
             # in the end
@@ -641,7 +645,7 @@ def parsed_providers(decompiled_app_path):
     # get and parse manifest_providers
     manifest_providers = manifest.providers()
     for provider in manifest_providers:
-        provider_string = string(provider["authority"], strings_xml)
+        provider_string = string(provider["authorities"], strings_xml)
         if string(provider["name"], strings_xml).startswith("."):
             provider_string = "{}{}".format(provider_string,
                 string(provider['name'], strings_xml))

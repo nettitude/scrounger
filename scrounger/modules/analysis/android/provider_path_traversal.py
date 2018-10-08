@@ -47,18 +47,20 @@ vulnerabilities",
         Log.info("Analysing providers")
 
         vulnerable_providers = []
+        example_result = None
         for provider in providers:
             exec_result = self.device.read_provider(provider,
-                self.exploit_path)[0]
+                self.exploit_path)
 
-            if exec_result:
+            if exec_result and "Exception" not in exec_result:
                 vulnerable_providers += [provider]
+                example_result = exec_result
 
         if vulnerable_providers:
-            details = "* Vulnerable Providers:\n * {}".format(
+            details = "* Vulnerable Providers:\n* {}".format(
                 "\n* ".join(vulnerable_providers))
             details += "\n\nAn example of exploitation success:\n{}".format(
-                exec_result)
+                example_result)
 
             result.update({
                 "report": True,

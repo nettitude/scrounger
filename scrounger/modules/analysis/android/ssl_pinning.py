@@ -7,7 +7,6 @@ from scrounger.utils.android import extract_smali_method
 from scrounger.utils.config import Log, _CERT_PATH
 from scrounger.lib.proxy2 import create_server
 
-
 import re
 
 class Module(BaseModule):
@@ -72,6 +71,7 @@ prologue\n(([\t ]*(\.line.*)?)\n)*[ \t]*const\/4 v0, 0x0\n[ \n\t]*\
 return-object v0"
 
     def run(self):
+        from time import sleep
         result = {
             "title": "Application Does Not Implement SSL Pinning",
             "details": "",
@@ -156,6 +156,7 @@ proxy on the remote device".format(self.wait_time))
 
             if pinned:
                 result.update({
+                    "title": "Application Implements SSL Pinning",
                     "report": True,
                     "details": "{}\n\nThe application started a connection but \
 made no requests to the following domains:\n* {}".format(result["details"],

@@ -1,7 +1,7 @@
 from scrounger.core.module import BaseModule
 
 # helper functions
-from scrounger.modules.misc.ios.local.app.symbols import Module as SymbolsModule
+from scrounger.modules.misc.ios.app.symbols import Module as SymbolsModule
 from scrounger.utils.config import Log
 from scrounger.utils.general import strings
 import re

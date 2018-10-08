@@ -57,17 +57,17 @@ vulnerabilities",
             exec_result = self.device.query_provider(
                 provider, projection=self.exploit_query)
 
-            if self.success_string not in exec_result[0] and \
-            self.success_string not in exec_result[1]:
+            if self.success_string not in exec_result and \
+            self.success_string not in exec_result:
                 exec_result = self.device.query_provider(
                     provider, selection=self.exploit_query)
 
-            if self.success_string in exec_result[0] or \
-            self.success_string in exec_result[1]:
+            if self.success_string in exec_result or \
+            self.success_string in exec_result:
                 vulnerable_providers += [provider]
 
         if vulnerable_providers:
-            details = "* Vulnerable Providers:\n * {}".format(
+            details = "* Vulnerable Providers:\n* {}".format(
                 "\n* ".join(vulnerable_providers))
             details += "\n\nAn example of exploitation success:\n{}".format(
                 exec_result)

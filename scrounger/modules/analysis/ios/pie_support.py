@@ -1,7 +1,7 @@
 from scrounger.core.module import BaseModule
 
 # helper functions
-from scrounger.modules.misc.ios.local.app.flags import Module as FlagsModule
+from scrounger.modules.misc.ios.app.flags import Module as FlagsModule
 from scrounger.utils.config import Log
 import re
 

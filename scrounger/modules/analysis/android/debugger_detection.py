@@ -5,7 +5,7 @@ from scrounger.utils.config import Log
 from scrounger.utils.general import pretty_grep, pretty_grep_to_str
 from scrounger.utils.android import JDB, forward, remove_forward, smali_dirs
 
-from scrounger.modules.misc.android.app.make_debuggable import Module as DModule
+from scrounger.modules.misc.android.make_debuggable import Module as DModule
 
 from time import sleep
 import re

@@ -166,7 +166,7 @@ class BaseModule(object):
         # check if required options are set
         for option in self.options:
             if option["required"] and (not hasattr(self, option["name"]) or \
-                not getattr(self, option["name"])):
+                getattr(self, option["name"]) == None):
                 raise MissingRequiredOptionsException(
                     "Option `{}` not set".format(option["name"]), option)
 

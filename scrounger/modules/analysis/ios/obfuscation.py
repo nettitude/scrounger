@@ -3,7 +3,7 @@ from scrounger.core.module import BaseModule
 # helper functions
 from scrounger.utils.config import Log
 
-from scrounger.modules.misc.ios.local.class_dump import Module as ClDumpModule
+from scrounger.modules.misc.ios.class_dump import Module as ClDumpModule
 
 from langdetect import detect_langs
 from time import sleep

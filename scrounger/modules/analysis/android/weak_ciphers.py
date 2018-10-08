@@ -78,7 +78,7 @@ SSL_RSA_WITH_RC4_128_MD5|SSL_RSA_WITH_RC4_128_SHA"
         }
 
         # preparing variable to run
-        ciphers = []
+        ciphers = {}
         ignore = [filepath.strip() for filepath in self.ignore.split(";")]
 
         Log.info("Identifying smali directories")
