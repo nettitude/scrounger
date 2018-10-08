@@ -799,7 +799,7 @@ class AndroidDevice(BaseDevice):
 
         return _adb_command("-s {} shell {}".format(self._device_id, command))
 
-    def root_execute(self, command):
+    def root_execute(self, command, single_quoted=True):
         """
         Executes a command on the target device as root
 
@@ -807,10 +807,12 @@ class AndroidDevice(BaseDevice):
         :return: stdout and stderr from the executed command
         """
         @_requires_android_binary(self, "su")
-        def _root_execute(command):
-            return self.execute("su -c '{}'".format(command.replace("'", "\'")))
+        def _root_execute(command, single_quoted):
+            if single_quoted:
+                command = "'{}'".format(command.replace("'", "\'"))
+            return self.execute("su -c {}".format(command))
 
-        return _root_execute(command)
+        return _root_execute(command, single_quoted)
 
     def install(self, apk_path):
         """
@@ -1077,7 +1079,7 @@ class AndroidDevice(BaseDevice):
 projections or selections.")
 
         # build query
-        query = "content query --uri \\\"content://{}\\\"".format(provider)
+        query = "content query --uri \\'content://{}\\'".format(provider)
 
         if projection:
             query += " --projection \\\"{}\\\"".format(projection)
@@ -1085,7 +1087,7 @@ projections or selections.")
         if selection:
             query += " --where \\\"{}\\\"".format(selection)
 
-        return self.root_execute("\"{}\"".format(query))
+        return self.root_execute("\"{}\"".format(query), single_quoted=False)
 
     def read_provider(self, provider, path=""):
         """
@@ -1095,9 +1097,9 @@ projections or selections.")
         :param str path: the optional path to append to the provider
         :return: the result from the read provider
         """
-        query = "contant read --uri \\\"content://{}{}\\\"".format(
+        query = "content read --uri \\\"content://{}{}\\\"".format(
             provider, path)
-        return self.root_execute("\"{}\"".format(query))
+        return self.root_execute("\"{}\"".format(query), single_quoted=False)
 
     def world_files(self, remote_path, permissions):
         """

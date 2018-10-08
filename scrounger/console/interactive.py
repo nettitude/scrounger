@@ -115,6 +115,8 @@ class _ScroungerPrompt(_Cmd, object):
 
             # if the options is a device, check if that device has been added
             if option == "device" and value != None and value:
+                if int(value) not in self._session.devices:
+                    raise Exception("Device not in the list")
                 value = self._session.devices[int(value)]["device"]
 
             # if the options is from the results list, get the value
