@@ -71,17 +71,18 @@ def grep(needle, haystack, grep_options):
     return execute("grep {} \"{}\" {} /dev/null".format(
         grep_options, needle, haystack))
 
-def pretty_grep(needle, haystack):
+def pretty_grep(needle, haystack, grep_options="-arEin"):
     """
     Returns a well formatted dict with the results of grepping the needle in the
     haystack
 
     :param str needle: the needle to look for - needs to be a regex
     :param str haystack: the haystack to look in
+    :param str grep_options: the modifiers to be passed to grep
     :return: a dict ordered by filename with a list of dict containing the
     finding and the line number
     """
-    grep_result = grep(needle, haystack, "-arEin")
+    grep_result = grep(needle, haystack, grep_options)
 
     findings = {}
     for line in grep_result.split("\n"):
@@ -92,7 +93,7 @@ def pretty_grep(needle, haystack):
 
         filename, line_number, details = line.split(":", 2)
 
-        # creat a new list if filename not in findings
+        # create a new list if filename not in findings
         if filename not in findings:
             findings[filename] = []
 

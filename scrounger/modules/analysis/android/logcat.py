@@ -50,7 +50,6 @@ logcat",
             smali = "{}/{}".format(self.decompiled_apk, directory)
             logs.update(pretty_grep(self.regex, smali))
 
-
         report = {}
         # check var setting
         for file_name in logs:

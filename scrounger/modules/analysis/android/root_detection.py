@@ -27,8 +27,30 @@ class Module(BaseModule):
         }
     ]
 
-    regex = r"rootdetect|rootcheck|jailb[a-zA-Z0-9_-]*|rooted|substrate|\
-busybox|c3Vic3RyYXRl|YnVzeWJveA==|eHBvc2Vk|c3VwZXJzdQ=="
+    regex = r"jailb[a-zA-Z0-9_-]*"
+
+    artefacts = [
+        "/system/bin/su",
+        "/system/xbin/su",
+        "/sbin/su",
+        "/system/su",
+        "/system/bin/.ext/.su",
+        "/system/usr/we-need-root/su-backup",
+        "/system/xbin/mu",
+        "/data/local/xbin/su",
+        "/data/local/bin/su",
+        "/system/sd/xbin/su",
+        "/system/bin/failsafe/su",
+        "/data/local/su",
+        "rootdetect",
+        "rootcheck",
+        "rooted",
+        "substrate",
+        "busybox",
+        "xposed",
+        "supersu",
+        "jailb"
+    ]
 
     def run(self):
         result = {
@@ -37,6 +59,13 @@ busybox|c3Vic3RyYXRl|YnVzeWJveA==|eHBvc2Vk|c3VwZXJzdQ=="
             "severity": "High",
             "report": True
         }
+
+        # update regex with artefacts, base64 and hex
+        for artefact in self.artefacts:
+            self.regex = "{}|{}|{}|{}".format(self.regex, artefact,
+                artefact.encode("base64"), artefact.encode("hex")
+            ).replace("\n", "").replace("=", "").replace("+", "\\+")
+            # need to escape + because of the regex grep
 
         # preparing variable to run
         root_detection = {}

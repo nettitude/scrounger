@@ -28,7 +28,22 @@ detection",
         }
     ]
 
-    _regex = r"jailb[a-zA-Z0-9_-]*|cydia|substrate"
+    _regex = r"jailb[a-zA-Z0-9_-]*"
+
+    artefacts = [
+        "/bin/bash",
+        "/usr/sbin/sshd",
+        "/Applications/Cydia.app",
+        "/private/var/lib/apt",
+        "/pangueaxe",
+        "/System/Library/LaunchDaemons/io.pangu.axe.untether.plist",
+        "/Library/MobileSubstrate/MobileSubstrate.dylib",
+        "/usr/libexec/sftp-server",
+        "/private/var/stash",
+        "cydia",
+        "substrate",
+        "jailb"
+    ]
 
     def run(self):
         result = {
@@ -37,6 +52,13 @@ detection",
             "severity": "High",
             "report": True
         }
+
+        # update regex with artefacts, base64 and hex
+        for artefact in self.artefacts:
+            self._regex = "{}|{}|{}|{}".format(self._regex, artefact,
+                artefact.encode("base64"), artefact.encode("hex")
+            ).replace("\n", "").replace("=", "").replace("+", "\\+")
+            # need to escape + because of the regex grep
 
         Log.info("Getting application's strings")
         strs = strings(self.binary)
