@@ -58,7 +58,7 @@ obfuscated",
         class_dump_module = ClDumpModule()
         class_dump_module.binary = self.binary
         class_dump_module.output = None
-        class_dump_result, classes_dumped = class_dump_module.run(), None
+        class_dump_result, classes_dumped = class_dump_module.run(), []
         for key in class_dump_result:
             if key.endswith("_class_dump"):
                 classes_dumped = class_dump_result[key]
@@ -99,6 +99,18 @@ obfuscated",
                         for part in method_dumped.split(" ")
                         if ":" in part
                     ]
+
+        if not class_strings:
+            if not result["report"]:
+                result.update({
+                    "details": "Scrounger was not able to dump objc classes.",
+                    "report": True
+                })
+
+            return {
+                "{}_result".format(self.name()): result,
+                "exceptions": exceptions
+            }
 
         # put them all together and get an analysis
         class_detect_lang = detect_langs(" ".join(class_strings))[0]
