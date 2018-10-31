@@ -671,13 +671,13 @@ uncrypt11.dylib"
 
         if "No error occured!" not in result[0] and \
         "No error occured!" not in result[1]:
-            _Log.debug("Not decrypted:\n{}\n{}".format(result[0], results[1]))
+            _Log.debug("Not decrypted:\n{}\n{}".format(result[0], result[1]))
             return "FAIL: An error occured trying to decrypt {}".format(app_id)
 
         list_apps = self.apps()
         app_info = list_apps[app_id]
-        decrypted_binary = "{}/Documents/{}\ decrypted".format(
-            app_info["data"], app_info["binary_name"])
+        decrypted_binary = "{}/Documents/{}\\ decrypted".format(
+            app_info["data"], app_info["binary_name"].replace(" ", "\\ "))
 
         if not self.file_exists(decrypted_binary):
             _Log.debug("File {} does not exist".format(decrypted_binary))
@@ -685,7 +685,8 @@ uncrypt11.dylib"
 
         # move binary to tmp
         end_path = "/tmp/{}.decrypted".format(app_id)
-        self.execute("mv {} {}".format(decrypted_binary, end_path))
+        self.execute("mkdir {}".format(end_path))
+        self.execute("mv {} {}/{}".format(decrypted_binary, end_path, app_id))
 
         if decrypt_type == "-b":
             _Log.debug("Dumpped binary")

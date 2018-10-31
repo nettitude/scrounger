@@ -123,10 +123,19 @@ proxy on the remote device".format(self.wait_time))
 
             if pinned:
                 result.update({
+                    "title": "Application Implements SSL Pinning",
                     "report": True,
                     "details": "{}\n\nThe application started a connection but \
 made no requests to the following domains:\n* {}".format(result["details"],
                         "\n* ".join(pinned))
+                    })
+
+            if proxy_server.server.requested:
+                result.update({
+                    "report": True,
+                    "details": "{}\n\nThe application started a connection and \
+made requests to the following domains:\n* {}".format(result["details"],
+                        "\n* ".join(proxy_server.server.requested))
                     })
 
             proxy_server.stop()
