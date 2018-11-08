@@ -430,6 +430,9 @@ def jtool_class_dump_to_dict(output):
 
     for line in output.split("\n"):
 
+        if not line.strip():
+            continue
+
         if any(key in line for key in parsing_types):
             if working_class and collected_types and parsing_type:
                 working_class[parsing_type] = collected_types

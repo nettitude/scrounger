@@ -58,7 +58,25 @@ class Module(BaseModule):
 proxy - this time is used to allow setup of proxy on the remote device.",
             "required": False,
             "default": 20
-        }
+        },
+        {
+            "name": "relay",
+            "description": "to be used when UNSSUPORTED PROTOCOLS errors occur \
+on iOS SSL intercept - relays to invisible proxy on 127.0.0.1:8080 and expects \
+the request to be returned to 127.0.0.1:9091",
+            "required": False,
+            "default": False
+        },
+        {
+            "name": "ignore_url",
+            "description": "domains to be ignored",
+            "required": False,
+            "default": ".icloud.com;.apple.com;.googleapis.com;\
+graph.facebook.com;.crashlytics.com;api.branch.io;t.appsflyer.com;\
+gate.hockeyapp.net;www.paypalobjects.com;www.gstatic.com;app.adjust.com;\
+data.flurry.com;.doubleclick.net;.google-analytics.com;.adobedtm.com;\
+googletagmanager.com"
+        },
     ]
 
     _regex = r"setAllowInvalidCertificates|allowsInvalidSSLCertificate|\
@@ -71,6 +89,8 @@ validatesDomainName|SSLPinningMode"
             "severity": "Medium",
             "report": False
         }
+
+        ignored_urls = [url.strip() for url in self.ignore_url.split(";")]
 
         Log.info("Getting application's strings")
         strs = strings(self.binary)
@@ -106,8 +126,13 @@ proxy on the remote device".format(self.wait_time))
             self.device.stop(self.identifier)
 
             Log.info("Starting the SSL proxy")
-            proxy_server = create_server(self.proxy_host, self.proxy_port,
-                _CERT_PATH)
+            if self.relay:
+                proxy_server, upstream_server = create_server(
+                    self.proxy_host, self.proxy_port, _CERT_PATH,
+                    "127.0.0.1", 8080, 9091)
+            else:
+                proxy_server = create_server(self.proxy_host, self.proxy_port,
+                    _CERT_PATH)
 
             Log.info("Starting the Application")
             self.device.start(self.identifier)
@@ -115,8 +140,15 @@ proxy on the remote device".format(self.wait_time))
             Log.info("Waiting for the Application to start and make requests")
             sleep(10)
 
-            pinned = list(set(proxy_server.server.connected) -
+            if self.relay:
+                proxy_server.server.requested = list(set(
+                    upstream_server.server.requested))
+            unfiltered_pinned = list(set(proxy_server.server.connected) -
                 set(proxy_server.server.requested))
+            pinned = []
+            for url in unfiltered_pinned:
+                if not any([u in url for u in ignored_urls]):
+                    pinned += [url]
 
             if not proxy_server.server.connected:
                 Log.error("No connections made by the application")
@@ -138,6 +170,8 @@ made requests to the following domains:\n* {}".format(result["details"],
                         "\n* ".join(proxy_server.server.requested))
                     })
 
+            if self.relay:
+                upstream_server.stop()
             proxy_server.stop()
 
         return {

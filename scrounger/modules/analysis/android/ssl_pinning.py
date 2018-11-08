@@ -59,7 +59,17 @@ class Module(BaseModule):
 proxy - this time is used to allow setup of proxy on the remote device.",
             "required": False,
             "default": 20
-        }
+        },
+        {
+            "name": "ignore_url",
+            "description": "domains to be ignored",
+            "required": False,
+            "default": ".icloud.com;.apple.com;.googleapis.com;\
+graph.facebook.com;.crashlytics.com;api.branch.io;t.appsflyer.com;\
+gate.hockeyapp.net;www.paypalobjects.com;www.gstatic.com;app.adjust.com;\
+data.flurry.com;.doubleclick.net;.google-analytics.com;.adobedtm.com;\
+googletagmanager.com"
+        },
     ]
 
     regex = r"X509TrustManager|getAcceptedIssuers|checkClientTrusted|\
@@ -82,6 +92,7 @@ return-object v0"
         # preparing variable to run
         ssl_keywords = {}
         ignore = [filepath.strip() for filepath in self.ignore.split(";")]
+        ignored_urls = [url.strip() for url in self.ignore_url.split(";")]
 
         Log.info("Identifying smali directories")
         dirs = smali_dirs(self.decompiled_apk)
@@ -139,8 +150,12 @@ proxy on the remote device".format(self.wait_time))
             self.device.stop(self.identifier)
 
             Log.info("Starting the SSL proxy")
-            proxy_server = create_server(self.proxy_host, self.proxy_port,
-                _CERT_PATH)
+            try:
+                proxy_server = create_server(self.proxy_host, self.proxy_port,
+                    _CERT_PATH)
+            except Exception:
+                import traceback
+                Log.debug(traceback.format_exc())
 
             Log.info("Starting the Application")
             self.device.start(self.identifier)
@@ -148,8 +163,12 @@ proxy on the remote device".format(self.wait_time))
             Log.info("Waiting for the Application to start and make requests")
             sleep(10)
 
-            pinned = list(set(proxy_server.server.connected) -
+            unfiltered_pinned = list(set(proxy_server.server.connected) -
                 set(proxy_server.server.requested))
+            pinned = []
+            for url in unfiltered_pinned:
+                if not any([u in url for u in ignored_urls]):
+                    pinned += [url]
 
             if not proxy_server.server.connected:
                 Log.error("No connections made by the application")

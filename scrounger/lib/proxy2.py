@@ -44,9 +44,9 @@ class ThreadingHTTPServer(ThreadingMixIn, HTTPServer):
 
     def handle_error(self, request, client_address):
         # surpress socket/ssl related errors
-        cls, e = sys.exc_info()[:2]
+        clsa, e = sys.exc_info()[:2]
 
-        if cls is socket.error or cls is ssl.SSLError:
+        if clsa is socket.error or clsa is ssl.SSLError:
             pass
         else:
             return HTTPServer.handle_error(self, request, client_address)
@@ -55,21 +55,25 @@ class ThreadingHTTPServer(ThreadingMixIn, HTTPServer):
     def log_message(self, format, *args):
         return
 
-class ProxyRequestHandler(BaseHTTPRequestHandler):
+class ThreadingProxyRelay(ThreadingMixIn, HTTPServer):
+    address_family = socket.AF_INET6
+    daemon_threads = True
 
+    connected = []
+    requested = []
+
+    # RDC: Want it silent
+    def log_message(self, format, *args):
+        return
+
+class ProxyRequestRelay(BaseHTTPRequestHandler):
+    relay_host = "127.0.0.1"
+    relay_port = 8080
     timeout = 5
-    lock = threading.Lock()
-    cert_path = os.path.dirname(os.path.abspath(__file__))
 
     def __init__(self, *args, **kwargs):
         self.tls = threading.local()
         self.tls.conns = {}
-
-        self.cakey = join_with_script_dir(self.cert_path, "ca.key")
-        self.cacert = join_with_script_dir(self.cert_path, "ca.crt")
-        self.certkey = join_with_script_dir(self.cert_path, "cert.key")
-        self.certdir = join_with_script_dir(self.cert_path, "certs/")
-
         BaseHTTPRequestHandler.__init__(self, *args, **kwargs)
 
     # RDC: Want it silent
@@ -84,46 +88,11 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
         self.log_message(format, *args)
 
     def do_CONNECT(self):
-        if os.path.isfile(self.cakey) and os.path.isfile(self.cacert) and \
-        os.path.isfile(self.certkey) and os.path.isdir(self.certdir):
-            self.connect_intercept()
-        else:
-            self.connect_relay()
-
-    def connect_intercept(self):
-        hostname = self.path.split(":")[0]
-        certpath = "%s/%s.crt" % (self.certdir.rstrip("/"), hostname)
-
-        self.server.connected += [hostname]
-
-        with self.lock:
-            if not os.path.isfile(certpath):
-                epoch = "%d" % (time.time() * 1000)
-                p1 = Popen(["openssl", "req", "-new", "-key", self.certkey,
-                    "-subj", "/CN=%s" % hostname], stdout=PIPE)
-                p2 = Popen(["openssl", "x509", "-req", "-days", "3650", "-CA",
-                    self.cacert, "-CAkey", self.cakey, "-set_serial", epoch,
-                    "-out", certpath], stdin=p1.stdout, stderr=PIPE)
-                p2.communicate()
-
-        self.wfile.write("%s %d %s\r\n" % (self.protocol_version, 200,
-            "Connection Established"))
-        self.end_headers()
-
-        self.connection = ssl.wrap_socket(self.connection,
-            keyfile=self.certkey, certfile=certpath, server_side=True)
-        self.rfile = self.connection.makefile("rb", self.rbufsize)
-        self.wfile = self.connection.makefile("wb", self.wbufsize)
-
-        conntype = self.headers.get("Proxy-Connection", "")
-        if self.protocol_version == "HTTP/1.1" and conntype.lower() != "close":
-            self.close_connection = 0
-        else:
-            self.close_connection = 1
+        self.server.connected += [self.path.split(":")[0]]
+        self.connect_relay()
 
     def connect_relay(self):
-        address = self.path.split(":", 1)
-        address[1] = int(address[1]) or 443
+        address = (self.relay_host, self.relay_port) # burp
         try:
             s = socket.create_connection(address, timeout=self.timeout)
         except Exception as e:
@@ -145,6 +114,70 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
                     self.close_connection = 1
                     break
                 other.sendall(data)
+
+class ProxyRequestHandler(BaseHTTPRequestHandler):
+
+    timeout = 5
+    lock = threading.Lock()
+    cert_path = os.path.dirname(os.path.abspath(__file__))
+
+    def __init__(self, *args, **kwargs):
+        self.tls = threading.local()
+        self.tls.conns = {}
+
+        if self.cert_path:
+            self.cakey = join_with_script_dir(self.cert_path, "ca.key")
+            self.cacert = join_with_script_dir(self.cert_path, "ca.crt")
+            self.certkey = join_with_script_dir(self.cert_path, "cert.key")
+            self.certdir = join_with_script_dir(self.cert_path, "certs/")
+
+        BaseHTTPRequestHandler.__init__(self, *args, **kwargs)
+
+    # RDC: Want it silent
+    def log_message(self, format, *args):
+        return
+
+    def log_error(self, format, *args):
+        # surpress "Request timed out: timeout("timed out",)"
+        if isinstance(args[0], socket.timeout):
+            return
+
+        self.log_message(format, *args)
+
+    def do_CONNECT(self):
+        if os.path.isfile(self.cakey) and os.path.isfile(self.cacert) and \
+        os.path.isfile(self.certkey) and os.path.isdir(self.certdir):
+            self.connect_intercept()
+
+    def connect_intercept(self):
+        hostname = self.path.split(":")[0]
+        certpath = "%s/%s.crt" % (self.certdir.rstrip("/"), hostname)
+
+        with self.lock:
+            if not os.path.isfile(certpath):
+                epoch = "%d" % (time.time() * 1000)
+                p1 = Popen(["openssl", "req", "-new", "-key", self.certkey,
+                    "-subj", "/CN=%s" % hostname], stdout=PIPE)
+                p2 = Popen(["openssl", "x509", "-req", "-days", "365", "-CA",
+                    self.cacert, "-CAkey", self.cakey, "-set_serial", epoch,
+                    "-out", certpath], stdin=p1.stdout, stderr=PIPE)
+                p2.communicate()
+
+        self.wfile.write("%s %d %s\r\n" % (self.protocol_version, 200,
+            "Connection Established"))
+        self.end_headers()
+
+        self.connection = ssl.wrap_socket(self.connection,
+            keyfile=self.certkey, certfile=certpath, server_side=True)
+
+        self.rfile = self.connection.makefile("rb", self.rbufsize)
+        self.wfile = self.connection.makefile("wb", self.wbufsize)
+
+        conntype = self.headers.get("Proxy-Connection", "")
+        if self.protocol_version == "HTTP/1.1" and conntype.lower() != "close":
+            self.close_connection = 0
+        else:
+            self.close_connection = 1
 
     def do_GET(self):
         self.server.requested += [self.headers.get('Host')]
@@ -433,13 +466,19 @@ class AsyncThread(threading.Thread):
 
     _host = _port = server = None
 
-    def __init__(self, host, port, cert_path):
+    def __init__(self, host, port, cert_path=None, relay_host=None, relay_port=8080):
         super(AsyncThread, self).__init__()
+
         self._port = port
         self._host = host
-        ProxyRequestHandler.cert_path = cert_path
-        ProxyRequestHandler.protocol_version = "HTTP/1.1"
-        self.server = ThreadingHTTPServer((host, port), ProxyRequestHandler)
+        if cert_path:
+            ProxyRequestHandler.cert_path = cert_path
+            ProxyRequestHandler.protocol_version = "HTTP/1.1"
+            self.server = ThreadingHTTPServer((host, port), ProxyRequestHandler)
+        else:
+            ProxyRequestRelay.relay_host = relay_host
+            ProxyRequestRelay.relay_port = relay_port
+            self.server = ThreadingProxyRelay((host, port), ProxyRequestRelay)
 
     def run(self):
         self.server.serve_forever()
@@ -447,7 +486,8 @@ class AsyncThread(threading.Thread):
     def stop(self):
         self._Thread__stop()
 
-def create_server(host="", port=9090, cert_path="."):
+def create_server(host="", port=9090, cert_path=".", relay_host=None,
+    relay_port=8080, upstream_port=9091):
     """
     Creates and returns a HTTP proxy thread
 
@@ -457,6 +497,16 @@ def create_server(host="", port=9090, cert_path="."):
     :return AsyncThread: the thread with the intercepting server
     """
 
-    thread = AsyncThread(host, port, cert_path)
-    thread.start()
-    return thread
+    if not relay_host:
+        thread = AsyncThread(host, port, cert_path)
+        thread.start()
+        return thread
+
+    relay_thread = AsyncThread(host, port, relay_host=relay_host,
+        relay_port=relay_port)
+    relay_thread.start()
+
+    upstream_thread = AsyncThread(host, upstream_port, cert_path)
+    upstream_thread.start()
+
+    return relay_thread, upstream_thread

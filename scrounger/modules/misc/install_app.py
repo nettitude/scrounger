@@ -26,9 +26,9 @@ class Module(BaseModule):
     ]
 
     def run(self):
-
         Log.info("Installing application")
         return {
-            "print": self.device.install(self.application)
+            "print": "Installation result: {}".format(
+                self.device.install(self.application))
         }
 

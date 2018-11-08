@@ -442,16 +442,24 @@ class IOSDevice(BaseDevice):
         @_requires_ios_binary(self, "appinst")
         @_requires_ios_package(self, "net.angelxwind.appsyncunified")
         def _install(ipa_file_path):
+            from time import sleep
 
             filename = ipa_file_path.rsplit("/", 1)[-1]
             remote_ipa_file = "/tmp/{}".format(filename.replace(" ", "_"))
 
             # prepare filename
             ipa_file_path = ipa_file_path.replace(" " , "\ ")
-            self.put(ipa_file_path, remote_ipa_file)
 
-            result = self.execute(
-                "appinst {}".format(remote_ipa_file))[0]
+            try:
+                self.put(ipa_file_path, remote_ipa_file)
+                result = self.execute("appinst {}".format(remote_ipa_file))[0]
+            except Exception as e:
+                # the app may be too big, sleeping a few more seconds
+                result = "Installation timed out"
+                sleep(10)
+
+            # delete IPA
+            self.execute("rm -rf {}".format(remote_ipa_file))
 
             # update app list
             self.execute("uicache")

@@ -140,7 +140,7 @@ class _ScroungerPrompt(_Cmd, object):
 
         if "exceptions" in result:
             for e in result["exceptions"]:
-                self._print_error("Exception: {}".format(e.message))
+                self._print_error("Module Exception: {}".format(e.message))
 
         if "print" in result:
             self._print_status(result.pop("print"))
@@ -170,7 +170,7 @@ class _ScroungerPrompt(_Cmd, object):
             self._print_result(result)
             self._session.results.update(result)
         except Exception as e:
-            self._print_error("Exception: {}".format(e.message))
+            self._print_error("Run Exception: {}".format(e.message))
 
             # print debug
             if "debug" in self._session.global_options and \
